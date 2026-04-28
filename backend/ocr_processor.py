@@ -57,23 +57,27 @@ def _ocr_es_suficiente(texto):
 
 
 def _ocr_imagen(ruta_imagen):
-    """Aplica OCR con doble intento: primero imagen original, luego preprocesada si el resultado es pobre."""
-    texto = pytesseract.image_to_string(
-        Image.open(str(ruta_imagen)), lang='spa', config='--psm 6'
-    )
-    logger.info(f"[OCR-DIAG] intento directo ({len(texto.strip())} chars): {repr(texto[:300])}")
+    """Aplica OCR probando varios modos PSM y preprocesamiento hasta obtener un resultado útil."""
+    img = Image.open(str(ruta_imagen))
+    mejor = ""
 
-    if _ocr_es_suficiente(texto):
-        return texto
+    for psm in ('3', '6', '11'):
+        texto = pytesseract.image_to_string(img, lang='spa', config=f'--psm {psm}')
+        if _ocr_es_suficiente(texto):
+            return texto
+        if len(texto.strip()) > len(mejor.strip()):
+            mejor = texto
 
+    # Último recurso: preprocesamiento + PSM 3
     img_proc = preprocesar_imagen(ruta_imagen)
     if img_proc is not None:
-        texto_proc = pytesseract.image_to_string(img_proc, lang='spa', config='--psm 6')
-        logger.info(f"[OCR-DIAG] intento preprocesado ({len(texto_proc.strip())} chars): {repr(texto_proc[:300])}")
-        if len(texto_proc.strip()) > len(texto.strip()):
+        texto_proc = pytesseract.image_to_string(img_proc, lang='spa', config='--psm 3')
+        if _ocr_es_suficiente(texto_proc):
             return texto_proc
+        if len(texto_proc.strip()) > len(mejor.strip()):
+            mejor = texto_proc
 
-    return texto
+    return mejor
 
 
 def preprocesar_imagen(ruta_imagen):
@@ -195,6 +199,34 @@ def extraer_numero_documento(texto):
     return None
 
 
+_MESES_ES = {
+    'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
+    'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
+    'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
+}
+
+
+def _normalizar_fecha(fecha_str):
+    """Convierte una fecha extraída a formato ISO 8601 (YYYY-MM-DD)."""
+    fecha_str = fecha_str.strip()
+    m = re.match(r'(\d{1,2})\s+(?:de\s+)?(\w+)\s+(?:de\s+)?(\d{4})', fecha_str, re.IGNORECASE)
+    if m:
+        dia, mes_str, anio = m.groups()
+        mes = _MESES_ES.get(mes_str.lower())
+        if mes:
+            return f"{anio}-{mes:02d}-{int(dia):02d}"
+    partes = re.split(r'[/\-\.]', fecha_str)
+    if len(partes) == 3:
+        a, b, c = partes
+        if len(c) == 4:
+            return f"{c}-{int(b):02d}-{int(a):02d}"
+        if len(a) == 4:
+            return f"{a}-{int(b):02d}-{int(c):02d}"
+        if len(c) == 2:
+            return f"20{c}-{int(b):02d}-{int(a):02d}"
+    return fecha_str
+
+
 def extraer_fecha(texto):
     """Extrae fecha del documento y la normaliza a ISO 8601 (YYYY-MM-DD)."""
     patrones = [
@@ -213,9 +245,10 @@ def extraer_fecha(texto):
 def extraer_proveedor(texto):
     """Extrae nombre del proveedor."""
     patrones = [
-        r'(?:proveedor|empresa|raz[oó]n social|emisor)[:\s]+([^\n\r]{5,80})',
-        r'^([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s,\.]{4,60}(?:S\.?L\.?|S\.?A\.?|S\.?L\.?U\.?|S\.?A\.?U\.|S\.?C\.?|S\.?L\.?P\.?))',
-        r'([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ\s]{4,40}(?:S\.?L\.?|S\.?A\.?|S\.?L\.?U\.?))',
+        # Lookbehind (?<=[,\s\.]) evita que "sa" al final de palabras como "empresa" active el sufijo
+        r'([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ ,\.]{4,60}(?<=[,\s\.])(?:S\.?L\.?U?\.?|S\.?A\.?U?\.?|S\.?C\.?|S\.?L\.?P\.))\b',
+        r'(?:proveedor|raz[oó]n social|emisor)[:\s]+([^\n\r]{5,80})',
+        r'([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ ,]{4,40}(?<=[,\s])(?:S\.L\.|S\.A\.))\b',
     ]
     for patron in patrones:
         match = re.search(patron, texto, re.IGNORECASE | re.MULTILINE)
@@ -261,8 +294,9 @@ def _parsear_importe(importe_str):
 def extraer_importe(texto, tipo='total'):
     """Extrae importes del documento."""
     patrones_total = [
-        r'total\s+(?:a\s+pagar|factura|albar[aá]n)?[:\s]*([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})',
+        r'total\s+(?:a\s+pagar|factura|albar[aá]n)[:\s]*([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})',
         r'(?:importe\s+total|total\s+iva\s+incluido)[:\s]*([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})',
+        r'total\s*\([^)]*\)\s*([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})',
         r'total[:\s€$]*\s*([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})',
     ]
     patrones_base = [
@@ -284,14 +318,33 @@ def extraer_importe(texto, tipo='total'):
     else:
         patrones = patrones_total
 
-    for patron in patrones:
-        match = re.search(patron, texto, re.IGNORECASE)
-        if match:
+    if tipo == 'total':
+        # Recogemos TODOS los candidatos de todos los patrones y devolvemos el máximo.
+        # Un patrón genérico puede capturar líneas de detalle (ej. "Total\n12,50") antes
+        # que el total real; el total siempre es el valor más alto del documento.
+        candidatos = []
+        for patron in patrones_total:
+            for m in re.finditer(patron, texto, re.IGNORECASE):
+                try:
+                    candidatos.append(_parsear_importe(m.group(1)))
+                except ValueError:
+                    pass
+        # Importes con símbolo € como fuente adicional (facturas en formato tabla)
+        for m in re.finditer(r'([0-9]{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*€', texto, re.IGNORECASE):
             try:
-                return _parsear_importe(match.group(1))
+                candidatos.append(_parsear_importe(m.group(1)))
             except ValueError:
-                continue
-    return 0.0
+                pass
+        return max(candidatos) if candidatos else 0.0
+    else:
+        for patron in patrones:
+            match = re.search(patron, texto, re.IGNORECASE)
+            if match:
+                try:
+                    return _parsear_importe(match.group(1))
+                except ValueError:
+                    continue
+        return 0.0
 
 
 def extraer_porcentaje_iva(texto):
@@ -341,6 +394,8 @@ def procesar_documento(ruta_archivo):
     if not texto or len(texto.strip()) < 10:
         return {'error': 'No se pudo extraer texto del documento. Comprueba que el archivo no está vacío o protegido.', 'estado': 'ERROR'}
 
+    logger.info("=== OCR DEBUG (primeros 1200 chars) ===\n%s\n=== FIN OCR DEBUG ===", texto[:1200])
+
     # Extraer campos
     tipo = detectar_tipo_documento(texto)
     numero = extraer_numero_documento(texto)
@@ -386,6 +441,11 @@ def procesar_documento(ruta_archivo):
             'estado': 'ERROR',
         }
     # ─────────────────────────────────────────────────────────────────────────
+
+    # Si el total extraído es menor que la base, el total es incorrecto — descartarlo
+    if total > 0 and base_imponible > 0 and total < base_imponible:
+        logger.warning(f"Total extraído ({total}) menor que base ({base_imponible}): descartado.")
+        total = 0.0
 
     # Si tenemos base y total pero no IVA → calcularlo por diferencia
     if base_imponible > 0 and total > 0 and iva_importe == 0:
