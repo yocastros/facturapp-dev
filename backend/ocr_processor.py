@@ -48,6 +48,34 @@ except ImportError:
     logger.warning("pdf2image no disponible.")
 
 
+def _ocr_es_suficiente(texto):
+    """Devuelve True si el texto OCR tiene contenido útil de factura o albarán."""
+    if not texto or len(texto.strip()) < 50:
+        return False
+    palabras_clave = ['factura', 'albaran', 'albarán', 'invoice', 'total', 'iva', 'importe', 'fecha', 'numero']
+    return any(p in texto.lower() for p in palabras_clave)
+
+
+def _ocr_imagen(ruta_imagen):
+    """Aplica OCR con doble intento: primero imagen original, luego preprocesada si el resultado es pobre."""
+    texto = pytesseract.image_to_string(
+        Image.open(str(ruta_imagen)), lang='spa', config='--psm 6'
+    )
+    logger.info(f"[OCR-DIAG] intento directo ({len(texto.strip())} chars): {repr(texto[:300])}")
+
+    if _ocr_es_suficiente(texto):
+        return texto
+
+    img_proc = preprocesar_imagen(ruta_imagen)
+    if img_proc is not None:
+        texto_proc = pytesseract.image_to_string(img_proc, lang='spa', config='--psm 6')
+        logger.info(f"[OCR-DIAG] intento preprocesado ({len(texto_proc.strip())} chars): {repr(texto_proc[:300])}")
+        if len(texto_proc.strip()) > len(texto.strip()):
+            return texto_proc
+
+    return texto
+
+
 def preprocesar_imagen(ruta_imagen):
     """Preprocesa imagen para mejorar precisión OCR."""
     if not OCR_DISPONIBLE:
@@ -104,20 +132,7 @@ def extraer_texto_pdf(ruta_pdf):
                 img_path = tmp.name
             try:
                 pagina.save(img_path, "PNG")
-                img_proc = preprocesar_imagen(img_path)
-                if img_proc is not None:
-                    texto = pytesseract.image_to_string(
-                        img_proc,
-                        lang='spa',
-                        config='--psm 6'
-                    )
-                else:
-                    texto = pytesseract.image_to_string(
-                        Image.open(img_path),
-                        lang='spa',
-                        config='--psm 6'
-                    )
-                texto_total += texto + "\n"
+                texto_total += _ocr_imagen(img_path) + "\n"
             finally:
                 if os.path.exists(img_path):
                     os.remove(img_path)
@@ -129,21 +144,11 @@ def extraer_texto_pdf(ruta_pdf):
 
 
 def extraer_texto_imagen(ruta_imagen):
-    """Extrae texto de imagen con preprocesamiento."""
+    """Extrae texto de imagen con estrategia de doble intento."""
     if not OCR_DISPONIBLE:
         return None
     try:
-        img_proc = preprocesar_imagen(ruta_imagen)
-        if img_proc is not None:
-            texto = pytesseract.image_to_string(
-                img_proc, lang='spa', config='--psm 6'
-            )
-        else:
-            texto = pytesseract.image_to_string(
-                Image.open(str(ruta_imagen)),
-                lang='spa', config='--psm 6'
-            )
-        return texto
+        return _ocr_imagen(ruta_imagen)
     except Exception as e:
         logger.error(f"Error procesando imagen: {e}")
         return None
