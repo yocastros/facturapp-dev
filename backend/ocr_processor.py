@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,9 @@ def preprocesar_imagen(ruta_imagen):
     if not OCR_DISPONIBLE:
         return None
     img = cv2.imread(str(ruta_imagen))
+    if img is None:
+        logger.warning(f"No se pudo cargar la imagen: {ruta_imagen}")
+        return None
     gris = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # Umbral adaptativo gaussiano
     umbral = cv2.adaptiveThreshold(
@@ -60,7 +64,7 @@ def preprocesar_imagen(ruta_imagen):
         cv2.THRESH_BINARY, 11, 2
     )
     # Reducción de ruido
-    kernel = np.ones((1, 1), np.uint8)
+    kernel = np.ones((2, 2), np.uint8)
     procesada = cv2.morphologyEx(umbral, cv2.MORPH_CLOSE, kernel)
     return procesada
 
@@ -84,7 +88,6 @@ def extraer_texto_pdf(ruta_pdf):
     if not PDF_DISPONIBLE or not OCR_DISPONIBLE:
         return None
 
-    import tempfile
     poppler_path = _get_poppler_path()
 
     try:
@@ -99,24 +102,25 @@ def extraer_texto_pdf(ruta_pdf):
             # Usar carpeta temporal del sistema (funciona en Windows y Linux)
             with tempfile.NamedTemporaryFile(suffix=f'_pag{i}.png', delete=False) as tmp:
                 img_path = tmp.name
-            pagina.save(img_path, "PNG")
-
-            img_proc = preprocesar_imagen(img_path)
-            if img_proc is not None:
-                texto = pytesseract.image_to_string(
-                    img_proc,
-                    lang='spa',
-                    config='--psm 6'
-                )
-            else:
-                texto = pytesseract.image_to_string(
-                    Image.open(img_path),
-                    lang='spa',
-                    config='--psm 6'
-                )
-            texto_total += texto + "\n"
-            if os.path.exists(img_path):
-                os.remove(img_path)
+            try:
+                pagina.save(img_path, "PNG")
+                img_proc = preprocesar_imagen(img_path)
+                if img_proc is not None:
+                    texto = pytesseract.image_to_string(
+                        img_proc,
+                        lang='spa',
+                        config='--psm 6'
+                    )
+                else:
+                    texto = pytesseract.image_to_string(
+                        Image.open(img_path),
+                        lang='spa',
+                        config='--psm 6'
+                    )
+                texto_total += texto + "\n"
+            finally:
+                if os.path.exists(img_path):
+                    os.remove(img_path)
 
         return texto_total
     except Exception as e:
@@ -187,7 +191,7 @@ def extraer_numero_documento(texto):
 
 
 def extraer_fecha(texto):
-    """Extrae fecha del documento."""
+    """Extrae fecha del documento y la normaliza a ISO 8601 (YYYY-MM-DD)."""
     patrones = [
         r'(?:fecha|date)[:\s]*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})',
         r'\b(\d{1,2}[/\-]\d{1,2}[/\-]\d{4})\b',
@@ -197,7 +201,7 @@ def extraer_fecha(texto):
     for patron in patrones:
         match = re.search(patron, texto, re.IGNORECASE)
         if match:
-            return match.group(1).strip()
+            return _normalizar_fecha(match.group(1))
     return None
 
 
@@ -231,6 +235,24 @@ def extraer_cif(texto):
     return None
 
 
+def _parsear_importe(importe_str):
+    """Convierte string de importe a float detectando formato español (1.234,56) e inglés (1,234.56)."""
+    tiene_punto = '.' in importe_str
+    tiene_coma = ',' in importe_str
+
+    if tiene_punto and tiene_coma:
+        # El separador que aparece en última posición es el decimal
+        if importe_str.rfind('.') > importe_str.rfind(','):
+            importe_str = importe_str.replace(',', '')           # inglés: "1,234.56"
+        else:
+            importe_str = importe_str.replace('.', '').replace(',', '.')  # español: "1.234,56"
+    elif tiene_coma:
+        importe_str = importe_str.replace(',', '.')             # "1234,56"
+    # Solo punto o ninguno: ya es float válido ("1234.56", "1234")
+
+    return float(importe_str)
+
+
 def extraer_importe(texto, tipo='total'):
     """Extrae importes del documento."""
     patrones_total = [
@@ -260,12 +282,25 @@ def extraer_importe(texto, tipo='total'):
     for patron in patrones:
         match = re.search(patron, texto, re.IGNORECASE)
         if match:
-            importe_str = match.group(1).replace('.', '').replace(',', '.')
             try:
-                return float(importe_str)
+                return _parsear_importe(match.group(1))
             except ValueError:
                 continue
     return 0.0
+
+
+def extraer_porcentaje_iva(texto):
+    """Detecta el tipo de IVA aplicado (4, 10 o 21) desde el texto del documento."""
+    patrones = [
+        r'(?:iva|i\.v\.a\.?)\s*[:\s]?\s*(4|10|21)\s*%',
+        r'(4|10|21)\s*%\s*(?:iva|i\.v\.a\.?)',
+        r'tipo\s+(?:de\s+)?iva[:\s]*\s*(4|10|21)',
+    ]
+    for patron in patrones:
+        match = re.search(patron, texto, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+    return None
 
 
 def extraer_numeros_albaranes_referenciados(texto):
@@ -351,9 +386,17 @@ def procesar_documento(ruta_archivo):
     if base_imponible > 0 and total > 0 and iva_importe == 0:
         iva_importe = round(total - base_imponible, 2)
 
-    # Si solo tenemos total → calcular base e IVA asumiendo 21%
+    # Si solo tenemos total → calcular base e IVA según el tipo detectado
     if total > 0 and base_imponible == 0:
-        base_imponible = round(total / 1.21, 2)
+        pct_detectado = extraer_porcentaje_iva(texto)
+        if pct_detectado is None:
+            pct_detectado = 21.0
+            logger.warning(
+                "No se detectó el tipo de IVA en el documento; "
+                "se asume 21%%. Los importes calculados pueden ser incorrectos."
+            )
+        divisor = 1 + pct_detectado / 100
+        base_imponible = round(total / divisor, 2)
         iva_importe = round(total - base_imponible, 2)
 
     # Si tenemos base e IVA pero no total → calcularlo
@@ -364,6 +407,16 @@ def procesar_documento(ruta_archivo):
     porcentaje_iva = 21.0
     if base_imponible > 0 and iva_importe > 0:
         porcentaje_iva = round((iva_importe / base_imponible) * 100, 1)
+
+    # Validación cruzada: comparar % IVA del documento con el calculado
+    pct_en_documento = extraer_porcentaje_iva(texto)
+    if pct_en_documento and base_imponible > 0:
+        if abs(porcentaje_iva - pct_en_documento) > 1.5:
+            logger.warning(
+                f"Discrepancia en IVA: el documento indica {pct_en_documento}% "
+                f"pero los importes extraídos implican {porcentaje_iva}%. "
+                "Posible error de OCR en algún importe."
+            )
 
     # Albaranes referenciados (si es factura)
     albaranes_ref = []

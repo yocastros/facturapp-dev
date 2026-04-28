@@ -546,7 +546,7 @@ async function cargarRecientes() {
       <tr style="cursor:pointer" onclick="verDetalle(${doc.id})">
         <td><span class="badge ${doc.tipo === 'factura' ? 'badge-factura' : 'badge-albaran'}">${doc.tipo === 'factura' ? 'FACTURA' : 'ALBARÁN'}</span></td>
         <td><strong>${doc.numero || '—'}</strong></td>
-        <td>${doc.fecha || '—'}</td>
+        <td>${fmtFecha(doc.fecha)}</td>
         <td>${doc.proveedor || '—'}</td>
         <td class="text-right"><strong>${fmt(doc.total)}</strong></td>
         <td><span class="badge ${badgeEstado(doc.estado)}">${doc.estado}</span></td>
@@ -584,7 +584,7 @@ function renderTablaDocumentos(docs) {
     <tr style="cursor:pointer" onclick="verDetalle(${doc.id})">
       <td><span class="badge ${doc.tipo === 'factura' ? 'badge-factura' : 'badge-albaran'}">${doc.tipo === 'factura' ? 'FACTURA' : 'ALBARÁN'}</span></td>
       <td><strong>${doc.numero || '—'}</strong></td>
-      <td>${doc.fecha || '—'}</td>
+      <td>${fmtFecha(doc.fecha)}</td>
       <td>${doc.proveedor || '—'}</td>
       <td>${doc.cif || '—'}</td>
       <td class="text-right"><strong>${fmt(doc.total)}</strong></td>
@@ -733,7 +733,7 @@ async function cargarNeteo() {
         <div class="neteo-item" id="fact-${f.id}" onclick="seleccionarFactura(${f.id}, '${f.numero || f.id}', '${f.proveedor || ''}')">
           <div class="neteo-info">
             <div class="neteo-num">📋 ${f.numero || `Doc #${f.id}`}</div>
-            <div class="neteo-det">${f.proveedor || '—'} · ${f.fecha || '—'} · <strong>${fmt(f.total)}</strong></div>
+            <div class="neteo-det">${f.proveedor || '—'} · ${fmtFecha(f.fecha)} · <strong>${fmt(f.total)}</strong></div>
           </div>
           <span style="color:var(--gris-m);font-size:18px">→</span>
         </div>`).join('');
@@ -748,7 +748,7 @@ async function cargarNeteo() {
           <input type="checkbox" class="neteo-check" id="chk-${a.id}" onchange="toggleAlbaran(${a.id})">
           <div class="neteo-info">
             <div class="neteo-num">📦 ${a.numero || `Doc #${a.id}`}</div>
-            <div class="neteo-det">${a.proveedor || '—'} · ${a.fecha || '—'} · <strong>${fmt(a.total)}</strong></div>
+            <div class="neteo-det">${a.proveedor || '—'} · ${fmtFecha(a.fecha)} · <strong>${fmt(a.total)}</strong></div>
           </div>
         </div>`).join('');
     }
@@ -814,7 +814,7 @@ async function verDetalle(id) {
         <div>
           ${detRow('Tipo', d.tipo === 'factura' ? 'FACTURA' : 'ALBARÁN')}
           ${detRow('Número', d.numero || '—')}
-          ${detRow('Fecha', d.fecha || '—')}
+          ${detRow('Fecha', fmtFecha(d.fecha))}
           ${detRow('Estado', `<span class="badge ${badgeEstado(d.estado)}">${d.estado}</span>`)}
           ${detRow('Proveedor', d.proveedor || '—')}
           ${detRow('CIF/NIF', d.cif || '—')}
@@ -889,6 +889,13 @@ async function generarReporte() {
 function fmt(n) {
   if (!n && n !== 0) return '—';
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+function fmtFecha(f) {
+  if (!f) return '—';
+  const p = f.split('-');
+  if (p.length === 3 && p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
+  return f;
 }
 
 function badgeEstado(est) {
