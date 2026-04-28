@@ -17,6 +17,13 @@ BACKEND_DIR = BASE_DIR / 'backend'
 FRONTEND_INDEX = BASE_DIR / 'frontend' / 'index.html'
 SO = platform.system()  # 'Windows', 'Darwin', 'Linux'
 
+# Rutas posibles del sistema de usuarios (producción primero, luego desarrollo)
+_USUARIOS_CANDIDATOS = [
+    Path("C:/SistemaUsuarios"),
+    Path("C:/Users/paula/Desktop/sistema_usuarios"),
+]
+USUARIOS_DIR = next((p for p in _USUARIOS_CANDIDATOS if (p / 'main.py').exists()), None)
+
 # ── Configurar Tesseract según SO ─────────────────────────────────────────────
 def configurar_tesseract():
     rutas = {
@@ -74,6 +81,50 @@ def obtener_poppler_path():
 
 # ── Arrancar backend ──────────────────────────────────────────────────────────
 backend_process = None
+usuarios_process = None
+
+def arrancar_usuarios():
+    """Arranca el servidor FastAPI de gestión de usuarios (puerto 8000)."""
+    global usuarios_process
+    if not USUARIOS_DIR:
+        return
+    env = os.environ.copy()
+    env['PYTHONIOENCODING'] = 'utf-8'
+
+    log_path = BASE_DIR / 'usuarios_error.log'
+
+    if SO == 'Windows':
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = subprocess.SW_HIDE
+        python_exe = Path(sys.executable)
+        pythonw = python_exe.parent / 'pythonw.exe'
+        ejecutable = str(pythonw) if pythonw.exists() else str(python_exe)
+    else:
+        si = None
+        ejecutable = sys.executable
+
+    with open(str(log_path), 'w', encoding='utf-8') as log_file:
+        usuarios_process = subprocess.Popen(
+            [ejecutable, str(USUARIOS_DIR / 'main.py')],
+            stdout=log_file,
+            stderr=log_file,
+            startupinfo=si,
+            cwd=str(USUARIOS_DIR),
+            env=env
+        )
+
+
+def esperar_usuarios(intentos=20):
+    import urllib.request
+    for _ in range(intentos):
+        try:
+            urllib.request.urlopen('http://localhost:8000/health', timeout=1)
+            return True
+        except Exception:
+            time.sleep(1)
+    return False
+
 
 def arrancar_backend():
     global backend_process
@@ -126,9 +177,11 @@ def abrir_navegador():
 
 
 def detener_sistema(icon=None, item=None):
-    global backend_process
+    global backend_process, usuarios_process
     if backend_process:
         backend_process.terminate()
+    if usuarios_process:
+        usuarios_process.terminate()
     if icon:
         icon.stop()
     sys.exit(0)
@@ -169,6 +222,7 @@ def arranque_con_bandeja():
 
     def proceso():
         configurar_tesseract()
+        arrancar_usuarios()
         arrancar_backend()
         ok = esperar_backend()
         if ok:
@@ -259,6 +313,9 @@ def arranque_con_ventana():
               cursor='hand2').pack(side='left', padx=8)
 
     def proceso():
+        canvas.coords(barra, 0, 0, 60, 8)
+        estado_var.set("Iniciando usuarios...")
+        arrancar_usuarios()
         canvas.coords(barra, 0, 0, 100, 8)
         estado_var.set("Iniciando servidor...")
         arrancar_backend()
