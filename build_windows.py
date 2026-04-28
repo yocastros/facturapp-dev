@@ -33,7 +33,7 @@ def crear_zip():
                     if item.is_file() and '__pycache__' not in str(item) and '.pyc' not in str(item):
                         zf.write(item, item.relative_to(BASE_DIR))
                         count += 1
-        for archivo in ['start.py', 'crear_acceso_directo.py']:
+        for archivo in ['start.py', 'crear_acceso_directo.py', 'deploy_local.py']:
             src = BASE_DIR / archivo
             if src.exists():
                 zf.write(src, archivo)
@@ -269,11 +269,12 @@ def copiar_y_limpiar():
         size_mb = sum(f.stat().st_size for f in dst.rglob('*') if f.is_file()) / 1024 / 1024
         print(f"      Resultado: {dst}")
         print(f"      Tamanio total: {size_mb:.1f} MB")
+    resultado = dst if src.exists() else None
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
     for f in BASE_DIR.glob('*.spec'): f.unlink()
     if (BASE_DIR / 'build').exists(): shutil.rmtree(BASE_DIR / 'build', ignore_errors=True)
     print("      OK")
-    return dst if src.exists() else None
+    return resultado
 
 # ── Main ──────────────────────────────────────────────────
 def main():
