@@ -3,7 +3,8 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ===================================================
-echo   Sistema de Gestion de Facturas y Albaranes v1.0
+echo   Sistema de Gestion de Facturas y Albaranes v2.0
+echo   Incluye: Sistema de Usuarios + Sistema de Facturas
 echo   Instalador Windows
 echo ===================================================
 echo.
@@ -81,10 +82,19 @@ echo [OK] Variables configuradas
 :: [5/6] Dependencias Python
 echo.
 echo [5/6] Instalando dependencias Python...
-cd /d "%INSTDIR%\backend"
+
+echo      Sistema de Facturas...
+cd /d "%INSTDIR%\sistema_facturas\backend"
 python -m pip install --upgrade pip -q
 python -m pip install -r requirements.txt -q
-python -m pip install pystray pillow pywin32 -q
+
+echo      Sistema de Usuarios...
+cd /d "%INSTDIR%\sistema_usuarios"
+python -m pip install -r requirements.txt -q
+
+echo      Dependencias de arranque...
+python -m pip install pystray pillow pywin32 uvicorn -q
+
 echo [OK] Dependencias instaladas
 
 :: [6/6] Acceso directo
@@ -95,9 +105,15 @@ python crear_acceso_directo.py
 
 echo.
 echo ===================================================
-echo   Instalacion completada!
-echo   Doble clic en el icono del escritorio para
-echo   arrancar el sistema.
+echo.
+echo   Instalacion completada correctamente!
+echo.
+echo   Se ha creado un acceso directo en el escritorio.
+echo   Haz doble clic en el para arrancar el sistema.
+echo.
+echo   El sistema NO se inicia automaticamente.
+echo   Usa el acceso directo cuando lo necesites.
+echo.
 echo ===================================================
 echo.
 pause

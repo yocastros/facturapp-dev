@@ -12,17 +12,10 @@ import threading
 import platform
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
-BACKEND_DIR = BASE_DIR / 'backend'
-FRONTEND_INDEX = BASE_DIR / 'frontend' / 'index.html'
+BASE_DIR     = Path(__file__).parent
+FACTURAS_DIR = BASE_DIR / 'sistema_facturas' / 'backend'
+USUARIOS_DIR = BASE_DIR / 'sistema_usuarios'
 SO = platform.system()  # 'Windows', 'Darwin', 'Linux'
-
-# Rutas posibles del sistema de usuarios (producción primero, luego desarrollo)
-_USUARIOS_CANDIDATOS = [
-    Path("C:/SistemaUsuarios"),
-    Path("C:/Users/paula/Desktop/sistema_usuarios"),
-]
-USUARIOS_DIR = next((p for p in _USUARIOS_CANDIDATOS if (p / 'main.py').exists()), None)
 
 # ── Configurar Tesseract según SO ─────────────────────────────────────────────
 def configurar_tesseract():
@@ -84,34 +77,21 @@ backend_process = None
 usuarios_process = None
 
 def arrancar_usuarios():
-    """Arranca el servidor FastAPI de gestión de usuarios (puerto 8000)."""
     global usuarios_process
-    if not USUARIOS_DIR:
-        return
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-
-    log_path = BASE_DIR / 'usuarios_error.log'
-
+    ejecutable = sys.executable
+    si = None
     if SO == 'Windows':
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        si.wShowWindow = subprocess.SW_HIDE
-        python_exe = Path(sys.executable)
-        pythonw = python_exe.parent / 'pythonw.exe'
-        ejecutable = str(pythonw) if pythonw.exists() else str(python_exe)
-    else:
-        si = None
-        ejecutable = sys.executable
-
-    with open(str(log_path), 'w', encoding='utf-8') as log_file:
+    log_path = BASE_DIR / 'usuarios_error.log'
+    with open(log_path, 'w', encoding='utf-8') as log_file:
         usuarios_process = subprocess.Popen(
-            [ejecutable, str(USUARIOS_DIR / 'main.py')],
+            [ejecutable, '-m', 'uvicorn', 'main:app',
+             '--host', '0.0.0.0', '--port', '8000'],
             stdout=log_file,
             stderr=log_file,
             startupinfo=si,
-            cwd=str(USUARIOS_DIR),
-            env=env
+            cwd=str(USUARIOS_DIR)
         )
 
 
@@ -149,11 +129,11 @@ def arrancar_backend():
 
     with open(str(log_path), 'w', encoding='utf-8') as log_file:
         backend_process = subprocess.Popen(
-            [ejecutable, str(BACKEND_DIR / 'app.py')],
+            [ejecutable, str(FACTURAS_DIR / 'app.py')],
             stdout=log_file,
             stderr=log_file,
             startupinfo=si,
-            cwd=str(BACKEND_DIR),
+            cwd=str(FACTURAS_DIR),
             env=env
         )
 
@@ -220,6 +200,7 @@ def arranque_con_bandeja():
     def proceso():
         configurar_tesseract()
         arrancar_usuarios()
+        esperar_usuarios()
         arrancar_backend()
         ok = esperar_backend()
         if ok:

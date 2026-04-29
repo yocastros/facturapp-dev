@@ -26,14 +26,14 @@ def crear_zip():
     zip_path = TEMP_DIR / 'programa.zip'
     count = 0
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for carpeta in ['backend', 'frontend']:
+        for carpeta in ['sistema_facturas', 'sistema_usuarios']:
             src = BASE_DIR / carpeta
             if src.exists():
                 for item in src.rglob('*'):
                     if item.is_file() and '__pycache__' not in str(item) and '.pyc' not in str(item):
                         zf.write(item, item.relative_to(BASE_DIR))
                         count += 1
-        for archivo in ['start.py', 'crear_acceso_directo.py', 'deploy_local.py']:
+        for archivo in ['start.py', 'crear_acceso_directo.py', 'instalar_windows.bat']:
             src = BASE_DIR / archivo
             if src.exists():
                 zf.write(src, archivo)
@@ -188,18 +188,15 @@ class GUI:
             self.root.quit(); sys.exit(0)
 
     def finalizar(self):
-        self.btn.config(text="Cerrar y arrancar", bg="#C9A84C", fg="#1B3A5C",
-                        font=("Segoe UI", 9, "bold"), command=self.cerrar_arrancar)
+        self.btn.config(text="Cerrar", bg="#C9A84C", fg="#1B3A5C",
+                        font=("Segoe UI", 9, "bold"), command=self.cerrar)
         self.estado.set("Instalacion completada")
         self.prog["value"] = 100
+        self.log("Acceso directo creado en el escritorio.")
+        self.log("Usa el icono del escritorio para arrancar.")
 
-    def cerrar_arrancar(self):
+    def cerrar(self):
         self.root.destroy()
-        instdir = str(INSTALL_DIR)
-        subprocess.Popen(
-            'cmd /c "cd /d ' + instdir + ' && start pythonw start.py"',
-            shell=True
-        )
 
     def run(self):
         threading.Thread(target=self.proceso, daemon=True).start()
