@@ -19,7 +19,8 @@ except ImportError:
     pass
 # ─────────────────────────────────────────────────────────────────────────
 
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, g
+import requests as http_requests
 from flask_cors import CORS
 from models import db, Documento
 from ocr_processor import procesar_documento
