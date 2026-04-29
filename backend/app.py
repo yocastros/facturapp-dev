@@ -3,6 +3,7 @@ import uuid
 import logging
 from datetime import datetime
 from pathlib import Path
+from functools import wraps
 
 # ── Variables de entorno para Windows (Tesseract + Poppler) ──────────────
 _tesseract_data = r"C:\Program Files\Tesseract-OCR\tessdata"
@@ -18,17 +19,48 @@ except ImportError:
     pass
 # ─────────────────────────────────────────────────────────────────────────
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from models import db, Documento
 from ocr_processor import procesar_documento
 from report_generator import generar_reporte_excel
+
+try:
+    import jwt as pyjwt
+    JWT_DISPONIBLE = True
+except ImportError:
+    JWT_DISPONIBLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+
+# Debe coincidir con SECRET_KEY del sistema de usuarios
+_JWT_SECRET = "clave-secreta-muy-larga-cambiar-en-produccion"
+_JWT_ALGORITHM = "HS256"
+
+
+def require_auth(f):
+    """Valida el token JWT emitido por el sistema de usuarios."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not JWT_DISPONIBLE:
+            return f(*args, **kwargs)  # Sin PyJWT instalado, modo sin auth
+        auth = request.headers.get('Authorization', '')
+        if not auth.startswith('Bearer '):
+            return jsonify({'error': 'No autorizado. Inicia sesión en el sistema de usuarios.'}), 401
+        token = auth.split(' ', 1)[1]
+        try:
+            payload = pyjwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+            request.usuario = payload
+        except pyjwt.ExpiredSignatureError:
+            return jsonify({'error': 'Sesión expirada. Vuelve a iniciar sesión.'}), 401
+        except pyjwt.InvalidTokenError:
+            return jsonify({'error': 'Token inválido.'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 # Configuración
 BASE_DIR = Path(__file__).parent.parent
@@ -61,6 +93,7 @@ def extension_permitida(filename):
 # ═══════════════════════════════════════════════════════════
 
 @app.route('/api/escanear', methods=['POST'])
+@require_auth
 def escanear_documento():
     """Sube y procesa un documento con OCR."""
     if 'archivo' not in request.files:
@@ -189,6 +222,7 @@ def _fechas_proximas(fecha1_str, fecha2_str, dias=30):
 
 
 @app.route('/api/documentos/<int:doc_id>/archivo', methods=['GET'])
+@require_auth
 def ver_archivo(doc_id):
     """Sirve el archivo original para visualizarlo en el navegador."""
     doc = Documento.query.get_or_404(doc_id)
@@ -212,6 +246,7 @@ def ver_archivo(doc_id):
 
 
 @app.route('/api/documentos', methods=['GET'])
+@require_auth
 def listar_documentos():
     """Lista todos los documentos con filtros opcionales."""
     tipo = request.args.get('tipo')
@@ -251,12 +286,14 @@ def listar_documentos():
 
 
 @app.route('/api/documentos/<int:doc_id>', methods=['GET'])
+@require_auth
 def obtener_documento(doc_id):
     doc = Documento.query.get_or_404(doc_id)
     return jsonify(doc.to_dict())
 
 
 @app.route('/api/documentos/<int:doc_id>', methods=['PUT'])
+@require_auth
 def actualizar_documento(doc_id):
     doc = Documento.query.get_or_404(doc_id)
     datos = request.get_json()
@@ -272,6 +309,7 @@ def actualizar_documento(doc_id):
 
 
 @app.route('/api/documentos/<int:doc_id>', methods=['DELETE'])
+@require_auth
 def eliminar_documento(doc_id):
     doc = Documento.query.get_or_404(doc_id)
     # Desasociar albaranes hijos
@@ -288,6 +326,7 @@ def eliminar_documento(doc_id):
 # ═══════════════════════════════════════════════════════════
 
 @app.route('/api/neteo/asociar', methods=['POST'])
+@require_auth
 def asociar_manualmente():
     """Asocia manualmente una factura con uno o varios albaranes."""
     datos = request.get_json()
@@ -321,6 +360,7 @@ def asociar_manualmente():
 
 
 @app.route('/api/neteo/desasociar/<int:albaran_id>', methods=['POST'])
+@require_auth
 def desasociar_albaran(albaran_id):
     """Desasocia un albarán de su factura."""
     alb = Documento.query.filter_by(id=albaran_id, tipo='albaran').first()
@@ -342,6 +382,7 @@ def desasociar_albaran(albaran_id):
 
 
 @app.route('/api/neteo/sin-asociar', methods=['GET'])
+@require_auth
 def documentos_sin_asociar():
     """Lista facturas sin albaranes y albaranes sin factura."""
     facturas_sin = Documento.query.filter_by(tipo='factura', estado='PROCESADO').all()
@@ -358,6 +399,7 @@ def documentos_sin_asociar():
 # ═══════════════════════════════════════════════════════════
 
 @app.route('/api/estadisticas', methods=['GET'])
+@require_auth
 def obtener_estadisticas():
     """Estadísticas generales del sistema."""
     total = Documento.query.count()
@@ -393,6 +435,7 @@ def obtener_estadisticas():
 
 
 @app.route('/api/reportes/generar', methods=['POST'])
+@require_auth
 def generar_reporte():
     """Genera y devuelve un reporte Excel."""
     datos = request.get_json() or {}
@@ -423,6 +466,21 @@ def generar_reporte():
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
+
+
+# ═══════════════════════════════════════════════════════════
+# SERVIR FRONTEND
+# ═══════════════════════════════════════════════════════════
+
+FRONTEND_DIR = str(BASE_DIR / 'frontend')
+
+@app.route('/')
+def serve_index():
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
 
 
 if __name__ == '__main__':

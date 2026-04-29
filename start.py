@@ -170,10 +170,7 @@ def esperar_backend(intentos=25):
 
 
 def abrir_navegador():
-    if SO == 'Windows':
-        webbrowser.open(f'file:///{FRONTEND_INDEX.resolve()}')
-    else:
-        webbrowser.open(f'file://{FRONTEND_INDEX.resolve()}')
+    webbrowser.open('http://localhost:5000')
 
 
 def detener_sistema(icon=None, item=None):
