@@ -43,6 +43,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--gris-f);color:var(--azul)
 .nav-item .icon{font-size:18px;width:22px;text-align:center;}
 .nav-badge{margin-left:auto;background:var(--dorado);color:var(--azul);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;}
 .sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.1);font-size:11px;color:rgba(255,255,255,0.3);}
+.sidebar-usuario{font-size:12px;opacity:.7;display:block;padding:0 20px 4px;}
+.nav-item-logout{margin-top:4px;padding:8px 20px;font-size:13px;}
 
 /* ─── MAIN ─── */
 .main{margin-left:240px;min-height:100vh;padding:32px;}
@@ -206,25 +208,31 @@ tbody td{padding:12px 14px;vertical-align:middle;}
   </div>
   <nav class="nav-section">
     <div class="nav-label">Principal</div>
-    <div class="nav-item active" onclick="showPage('dashboard')">
+    <div class="nav-item active" data-module="dashboard" onclick="showPage('dashboard')">
       <span class="icon">📊</span><span>Dashboard</span>
     </div>
-    <div class="nav-item" onclick="showPage('escanear')">
+    <div class="nav-item" data-module="escanear" onclick="showPage('escanear')">
       <span class="icon">📤</span><span>Escanear</span>
     </div>
-    <div class="nav-item" onclick="showPage('documentos')">
+    <div class="nav-item" data-module="documentos" onclick="showPage('documentos')">
       <span class="icon">📋</span><span>Documentos</span>
       <span class="nav-badge" id="badge-total">0</span>
     </div>
     <div class="nav-label" style="margin-top:12px">Gestión</div>
-    <div class="nav-item" onclick="showPage('neteo')">
+    <div class="nav-item" data-module="neteo" onclick="showPage('neteo')">
       <span class="icon">🔗</span><span>Neteo</span>
     </div>
-    <div class="nav-item" onclick="showPage('reportes')">
+    <div class="nav-item" data-module="reportes" onclick="showPage('reportes')">
       <span class="icon">📥</span><span>Reportes Excel</span>
     </div>
   </nav>
-  <div class="sidebar-footer">v1.0.0 · 2026</div>
+  <div class="sidebar-footer">
+    <span id="sidebar-usuario" class="sidebar-usuario"></span>
+    <div class="nav-item nav-item-logout" onclick="cerrarSesion()">
+      <span class="icon">🚪</span><span>Cerrar sesión</span>
+    </div>
+    v1.0.0 · 2026
+  </div>
 </aside>
 
 <!-- ═══ MAIN ═══ -->
@@ -490,11 +498,89 @@ tbody td{padding:12px 14px;vertical-align:middle;}
 <div class="toast-container" id="toasts"></div>
 
 <script>
-const API = 'http://localhost:5000/api';
+const API          = 'http://localhost:5000/api';
+const USUARIOS_API = 'http://localhost:8000';
 let docsCache = [];
 let filtroTipo = '';
 let facturaSeleccionada = null;
 let albaranesSeleccionados = new Set();
+
+// ═══════════════════════════════════════════
+// AUTENTICACIÓN Y PERMISOS
+// ═══════════════════════════════════════════
+function getToken() { return localStorage.getItem('token'); }
+
+function authHeaders(extra = {}) {
+  const t = getToken();
+  return t ? { 'Authorization': `Bearer ${t}`, ...extra } : { ...extra };
+}
+
+function cerrarSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  localStorage.removeItem('user_id');
+  window.location.href = `${USUARIOS_API}/login`;
+}
+
+function aplicarPermisos(perms) {
+  document.querySelectorAll('[data-module]').forEach(el => {
+    if (perms[el.dataset.module] === false) el.style.display = 'none';
+  });
+  // Si el usuario no tiene acceso al dashboard, ir al primer módulo permitido
+  if (perms.dashboard === false) {
+    const primero = Object.entries(perms).find(([, v]) => v)?.[0];
+    if (primero) showPage(primero);
+  }
+}
+
+async function initAuth() {
+  // Recoger token pasado por URL tras login cross-origin (file:// <-> http://)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('auth_token');
+  if (urlToken) {
+    localStorage.setItem('token', urlToken);
+    const urlRole = urlParams.get('auth_role');
+    if (urlRole) localStorage.setItem('role', urlRole);
+    urlParams.delete('auth_token');
+    urlParams.delete('auth_role');
+    const qs = urlParams.toString();
+    history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  }
+
+  const token = getToken();
+  if (!token) {
+    window.location.href = `${USUARIOS_API}/login?next=${encodeURIComponent(window.location.href)}`;
+    return false;
+  }
+
+  try {
+    const r = await fetch(`${USUARIOS_API}/me/permissions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = `${USUARIOS_API}/login`;
+      return false;
+    }
+    if (r.ok) {
+      const perms = await r.json();
+      aplicarPermisos(perms);
+    }
+    // Mostrar nombre de usuario
+    const me = await fetch(`${USUARIOS_API}/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (me.ok) {
+      const u = await me.json();
+      const el = document.getElementById('sidebar-usuario');
+      if (el) el.textContent = u.full_name || u.username;
+    }
+  } catch (e) {
+    // Sistema de usuarios no disponible — permitir acceso local sin restricciones
+    console.warn('Sistema de usuarios no disponible, modo local activo');
+  }
+  return true;
+}
 
 // ═══════════════════════════════════════════
 // NAVEGACIÓN
@@ -516,7 +602,7 @@ function showPage(id) {
 // ═══════════════════════════════════════════
 async function cargarEstadisticas() {
   try {
-    const r = await fetch(`${API}/estadisticas`);
+    const r = await fetch(`${API}/estadisticas`, { headers: authHeaders() });
     const d = await r.json();
     document.getElementById('kpi-total').textContent = d.total_documentos;
     document.getElementById('kpi-facturas').textContent = d.facturas;
@@ -535,7 +621,7 @@ async function cargarEstadisticas() {
 
 async function cargarRecientes() {
   try {
-    const r = await fetch(`${API}/documentos?por_pagina=6`);
+    const r = await fetch(`${API}/documentos?por_pagina=6`, { headers: authHeaders() });
     const d = await r.json();
     const tbody = document.querySelector('#tabla-recientes tbody');
     if (!d.documentos?.length) {
@@ -563,7 +649,7 @@ async function cargarDocumentos() {
     let url = `${API}/documentos?por_pagina=200`;
     if (filtroTipo) url += `&tipo=${filtroTipo}`;
     if (busq) url += `&q=${encodeURIComponent(busq)}`;
-    const r = await fetch(url);
+    const r = await fetch(url, { headers: authHeaders() });
     const d = await r.json();
     docsCache = d.documentos || [];
     document.getElementById('doc-count-text').textContent = `${d.total} documentos encontrados`;
@@ -609,7 +695,7 @@ function setFiltroTipo(tipo, el) {
 async function eliminarDoc(id) {
   if (!confirm('¿Eliminar este documento?')) return;
   try {
-    await fetch(`${API}/documentos/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/documentos/${id}`, { method: 'DELETE', headers: authHeaders() });
     toast('Documento eliminado', 'success');
     cargarDocumentos();
     cargarEstadisticas();
@@ -679,7 +765,7 @@ async function procesarCola() {
     try {
       const fd = new FormData();
       fd.append('archivo', item.file);
-      const r = await fetch(`${API}/escanear`, { method: 'POST', body: fd });
+      const r = await fetch(`${API}/escanear`, { method: 'POST', body: fd, headers: authHeaders() });
       const d = await r.json();
       if (r.ok) {
         item.estado = 'ok';
@@ -719,7 +805,7 @@ async function cargarNeteo() {
   facturaSeleccionada = null;
   albaranesSeleccionados.clear();
   try {
-    const r = await fetch(`${API}/neteo/sin-asociar`);
+    const r = await fetch(`${API}/neteo/sin-asociar`, { headers: authHeaders() });
     const d = await r.json();
 
     document.getElementById('count-facturas-sin').textContent = d.facturas_sin_albaran.length;
@@ -785,7 +871,7 @@ async function asociarSeleccionados() {
   try {
     const r = await fetch(`${API}/neteo/asociar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ factura_id: facturaSeleccionada, albaran_ids: Array.from(albaranesSeleccionados) })
     });
     const d = await r.json();
@@ -801,7 +887,7 @@ async function asociarSeleccionados() {
 // ═══════════════════════════════════════════
 async function verDetalle(id) {
   try {
-    const r = await fetch(`${API}/documentos/${id}`);
+    const r = await fetch(`${API}/documentos/${id}`, { headers: authHeaders() });
     const d = await r.json();
     document.getElementById('modal-titulo').textContent =
       `${d.tipo === 'factura' ? '📋 Factura' : '📦 Albarán'}: ${d.numero || `#${d.id}`}`;
@@ -837,7 +923,7 @@ async function verDetalle(id) {
 
     document.getElementById('btn-eliminar-modal').onclick = async () => {
       if (!confirm('¿Eliminar?')) return;
-      await fetch(`${API}/documentos/${id}`, { method: 'DELETE' });
+      await fetch(`${API}/documentos/${id}`, { method: 'DELETE', headers: authHeaders() });
       cerrarModal(); cargarDocumentos(); cargarEstadisticas();
       toast('Documento eliminado', 'success');
     };
@@ -867,7 +953,7 @@ async function generarReporte() {
 
     const r = await fetch(`${API}/reportes/generar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error('Error generando reporte');
@@ -918,9 +1004,9 @@ function toast(msg, tipo = 'info') {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  cargarEstadisticas();
-  cargarRecientes();
+document.addEventListener('DOMContentLoaded', async () => {
+  const ok = await initAuth();
+  if (ok) { cargarEstadisticas(); cargarRecientes(); }
 });
 </script>
 </body>
