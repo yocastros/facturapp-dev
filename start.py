@@ -164,10 +164,20 @@ def abrir_navegador():
 
 def detener_sistema(icon=None, item=None):
     global backend_process, usuarios_process
-    if backend_process:
-        backend_process.terminate()
-    if usuarios_process:
-        usuarios_process.terminate()
+    # Terminar procesos hijo con kill forzoso en Windows
+    for proc in [backend_process, usuarios_process]:
+        if proc:
+            try:
+                if SO == 'Windows':
+                    subprocess.run(
+                        ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                        capture_output=True
+                    )
+                else:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+            except Exception:
+                pass
     if icon:
         icon.stop()
     sys.exit(0)
