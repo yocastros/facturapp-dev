@@ -26,13 +26,20 @@ def crear_zip():
     zip_path = TEMP_DIR / 'programa.zip'
     count = 0
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for carpeta in ['sistema_facturas', 'sistema_usuarios']:
+        for carpeta in ['backend', 'frontend', 'sistema_usuarios']:
             src = BASE_DIR / carpeta
             if src.exists():
                 for item in src.rglob('*'):
                     if item.is_file() and '__pycache__' not in str(item) and '.pyc' not in str(item):
                         zf.write(item, item.relative_to(BASE_DIR))
                         count += 1
+        # Añadir tests de integración
+        tests_dir = BASE_DIR / 'sistema_facturas' / 'tests'
+        if tests_dir.exists():
+            for item in tests_dir.rglob('*'):
+                if item.is_file() and '__pycache__' not in str(item):
+                    zf.write(item, Path('sistema_facturas') / 'tests' / item.relative_to(tests_dir))
+                    count += 1
         for archivo in ['start.py', 'crear_acceso_directo.py', 'instalar_windows.bat']:
             src = BASE_DIR / archivo
             if src.exists():
@@ -128,16 +135,59 @@ def configurar_entorno(log):
 def crear_acceso_directo(log):
     log("Creando acceso directo...")
     try:
-        script  = str(INSTALL_DIR / "crear_acceso_directo.py")
-        instdir = str(INSTALL_DIR)
-        cmd = 'cmd /c "cd /d ' + instdir + ' && python ' + script + '"'
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        python_exe = Path("C:/Program Files/Python311/python.exe")
+        if not python_exe.exists():
+            python_exe = Path(sys.executable)
+        r = subprocess.run(
+            [str(python_exe), str(INSTALL_DIR / "crear_acceso_directo.py")],
+            capture_output=True, text=True, timeout=30, cwd=str(INSTALL_DIR)
+        )
         if r.returncode == 0:
             log("Acceso directo creado en el escritorio")
         else:
             log("Aviso: " + r.stderr[:80])
     except Exception as e:
         log("Error acceso directo: " + str(e))
+
+def instalar_python(log):
+    python_exe = Path("C:/Program Files/Python311/python.exe")
+    if python_exe.exists():
+        log("Python ya instalado"); return
+    log("Descargando Python 3.11...")
+    url = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
+    dest = Path(os.environ.get("TEMP", "C:/Temp")) / "python_inst.exe"
+    urllib.request.urlretrieve(url, dest, reporthook=lambda *a: None)
+    log("Instalando Python...")
+    subprocess.run(
+        [str(dest), "/passive", "InstallAllUsers=1", "PrependPath=1", "Include_tcltk=1"],
+        check=True
+    )
+    dest.unlink(missing_ok=True)
+    log("Python instalado")
+
+def instalar_dependencias(log):
+    python = Path("C:/Program Files/Python311/python.exe")
+    if not python.exists():
+        log("ERROR: Python no encontrado, saltando dependencias"); return
+    install_dir = Path("C:/FacturasAlbaranes")
+    log("Instalando dependencias del sistema de facturas...")
+    subprocess.run(
+        [str(python), "-m", "pip", "install", "-r",
+         str(install_dir / "backend" / "requirements.txt"), "-q"],
+        check=False
+    )
+    log("Instalando dependencias del sistema de usuarios...")
+    subprocess.run(
+        [str(python), "-m", "pip", "install", "-r",
+         str(install_dir / "sistema_usuarios" / "requirements.txt"), "-q"],
+        check=False
+    )
+    log("Instalando dependencias de arranque...")
+    subprocess.run(
+        [str(python), "-m", "pip", "install", "pystray", "pillow", "pywin32", "uvicorn", "-q"],
+        check=False
+    )
+    log("Dependencias instaladas")
 
 class GUI:
     def __init__(self):
@@ -210,6 +260,8 @@ class GUI:
             self.avanzar(5);  instalar_tesseract(self.log)
             self.avanzar(30); instalar_poppler(self.log)
             self.avanzar(55); instalar_programa(self.log)
+            self.avanzar(63); instalar_python(self.log)
+            self.avanzar(70); instalar_dependencias(self.log)
             self.avanzar(75); configurar_entorno(self.log)
             self.avanzar(88); crear_acceso_directo(self.log)
             self.avanzar(95); self.log("Instalacion completada!")

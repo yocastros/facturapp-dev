@@ -13,8 +13,16 @@ import platform
 from pathlib import Path
 
 BASE_DIR     = Path(__file__).parent
-FACTURAS_DIR = BASE_DIR / 'sistema_facturas' / 'backend'
-USUARIOS_DIR = BASE_DIR / 'sistema_usuarios'
+
+# Detectar estructura: nueva (sistema_facturas/backend) o antigua (backend)
+_nueva = BASE_DIR / 'sistema_facturas' / 'backend'
+_antigua = BASE_DIR / 'backend'
+FACTURAS_DIR = _nueva if _nueva.exists() else _antigua
+
+_nueva_usuarios = BASE_DIR / 'sistema_usuarios'
+_antigua_usuarios = BASE_DIR / 'sistema_usuarios'  # siempre igual
+USUARIOS_DIR = _nueva_usuarios if _nueva_usuarios.exists() else BASE_DIR / 'sistema_usuarios'
+
 SO = platform.system()  # 'Windows', 'Darwin', 'Linux'
 
 # ── Configurar Tesseract según SO ─────────────────────────────────────────────
@@ -78,7 +86,8 @@ usuarios_process = None
 
 def arrancar_usuarios():
     global usuarios_process
-    ejecutable = sys.executable
+    python_exe = Path(sys.executable)
+    ejecutable = str(python_exe.parent / 'python.exe') if (python_exe.parent / 'python.exe').exists() else str(python_exe)
     si = None
     if SO == 'Windows':
         si = subprocess.STARTUPINFO()
@@ -150,7 +159,7 @@ def esperar_backend(intentos=25):
 
 
 def abrir_navegador():
-    webbrowser.open('http://localhost:5000')
+    webbrowser.open('http://localhost:5000?fresh=1')
 
 
 def detener_sistema(icon=None, item=None):
@@ -206,6 +215,7 @@ def arranque_con_bandeja():
         if ok:
             if icon:
                 icon.title = 'Facturas y Albaranes\nSistema listo'
+            time.sleep(2)
             abrir_navegador()
         else:
             if icon:

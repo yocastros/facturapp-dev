@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Usuario - Sistema HORECA</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6fa;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            font-size: 24px;
+        }
+
+        .nav-links button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: inherit;
+            margin-left: 20px;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .nav-links button:hover {
+            opacity: 0.8;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e1e1e1;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input:disabled {
+            background: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
+        .password-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .user-info strong {
+            color: #333;
+        }
+
+        .access-denied {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .access-denied h2 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+
+        .permisos-admin-msg {
+            display: none;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <nav class="navbar">
+        <h1>🔐 Sistema HORECA</h1>
+        <div class="nav-links">
+            <button onclick="window.location.href='/dashboard'">Dashboard</button>
+            <button id="nav-users" onclick="window.location.href='/users'">Usuarios</button>
+            <button onclick="window.location.href='/profile'">Mi Perfil</button>
+            <button onclick="logout()">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="access-denied" class="access-denied" style="display: none;">
+            <h2>⛔ Acceso Denegado</h2>
+            <p>No tienes permiso para acceder a esta página.</p>
+            <button onclick="window.location.href='/dashboard'" class="btn" style="margin-top: 20px;">Volver al Dashboard</button>
+        </div>
+
+        <div id="content" class="card" style="display: none;">
+            <h2>✏️ Editar Usuario</h2>
+            
+            <div id="loading" class="loading">Cargando usuario...</div>
+            
+            <div id="form-container" style="display: none;">
+                <div class="user-info">
+                    <p><strong>ID:</strong> <span id="user-id"></span></p>
+                    <p><strong>Usuario:</strong> <span id="user-username"></span></p>
+                    <p><strong>Creado:</strong> <span id="user-created"></span></p>
+                </div>
+                
+                <div id="alert-success" class="alert alert-success"></div>
+                <div id="alert-error" class="alert alert-error"></div>
+                
+                <form id="editUserForm">
+                    <div class="section-title">Información General</div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="full_name">Nombre Completo</label>
+                        <input type="text" id="full_name" name="full_name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="role_id">Rol *</label>
+                        <select id="role_id" name="role_id" required>
+                            <option value="1">Administrador</option>
+                            <option value="2">Usuario Avanzado</option>
+                            <option value="3">Usuario Básico</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="is_active" name="is_active">
+                            <label for="is_active">Usuario activo</label>
+                        </div>
+                    </div>
+                    
+                    <div class="section-title">Seguridad</div>
+                    
+                    <div class="form-group">
+                        <label for="password">Nueva Contraseña</label>
+                        <input type="password" id="password" name="password" placeholder="Dejar en blanco para no cambiar">
+                        <p class="password-hint">Mínimo 6 caracteres. Deja en blanco si no deseas cambiar la contraseña.</p>
+                    </div>
+                    
+                    <div class="section-title">Acceso al Sistema de Facturas</div>
+
+                    <div id="permisos-admin-msg" class="permisos-admin-msg">
+                        Los administradores tienen acceso total por defecto.
+                    </div>
+
+                    <div id="permisos-container">
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="perm_dashboard" name="perm_dashboard">
+                                <label for="perm_dashboard">Dashboard</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="perm_escanear" name="perm_escanear">
+                                <label for="perm_escanear">Escanear Documentos</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="perm_documentos" name="perm_documentos">
+                                <label for="perm_documentos">Documentos</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="perm_neteo" name="perm_neteo">
+                                <label for="perm_neteo">Neteo</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="perm_reportes" name="perm_reportes">
+                                <label for="perm_reportes">Reportes Excel</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn">Guardar Cambios</button>
+                    <button type="button" onclick="window.location.href='/users'" class="btn btn-secondary" style="display: block; text-align: center;">Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar que esté logueado
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        // Obtener ID del usuario a editar desde la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+
+        if (!userId) {
+            window.location.href = '/users';
+        }
+
+        // Verificar rol del usuario
+        async function checkRole() {
+            try {
+                const response = await fetch('/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    localStorage.setItem('user_id', user.id);
+                    localStorage.setItem('role', user.role);
+                    
+                    // Si no es admin, mostrar acceso denegado
+                    if (user.role !== 'admin') {
+                        document.getElementById('content').style.display = 'none';
+                        document.getElementById('access-denied').style.display = 'block';
+                        return false;
+                    }
+                    
+                    document.getElementById('content').style.display = 'block';
+                    return true;
+                } else {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                return false;
+            }
+        }
+
+        const MODULOS = ['dashboard', 'escanear', 'documentos', 'neteo', 'reportes'];
+
+        async function loadPermisos(userRole) {
+            if (userRole === 'admin') {
+                document.getElementById('permisos-admin-msg').style.display = 'block';
+                document.getElementById('permisos-container').style.display = 'none';
+                return;
+            }
+            try {
+                const res = await fetch(`/api/users/${userId}/permissions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const perms = await res.json();
+                    MODULOS.forEach(m => {
+                        const cb = document.getElementById(`perm_${m}`);
+                        if (cb) cb.checked = !!perms[m];
+                    });
+                }
+            } catch (e) { /* sin permisos previos, dejar desmarcado */ }
+        }
+
+        // Cargar datos del usuario
+        async function loadUser() {
+            const loadingDiv = document.getElementById('loading');
+            const formContainer = document.getElementById('form-container');
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+
+                    document.getElementById('user-id').textContent = user.id;
+                    document.getElementById('user-username').textContent = user.username;
+                    document.getElementById('user-created').textContent = new Date(user.created_at).toLocaleString('es-ES');
+
+                    document.getElementById('email').value = user.email;
+                    document.getElementById('full_name').value = user.full_name || '';
+                    document.getElementById('is_active').checked = user.is_active;
+
+                    const roleMap = { 'admin': 1, 'advanced': 2, 'basic': 3 };
+                    document.getElementById('role_id').value = roleMap[user.role] || 3;
+
+                    await loadPermisos(user.role);
+
+                    loadingDiv.style.display = 'none';
+                    formContainer.style.display = 'block';
+                } else {
+                    loadingDiv.textContent = 'Error al cargar usuario';
+                }
+            } catch (error) {
+                loadingDiv.textContent = 'Error de conexión';
+            }
+        }
+
+        // Guardar cambios
+        document.getElementById('editUserForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const full_name = document.getElementById('full_name').value;
+            const role_id = parseInt(document.getElementById('role_id').value);
+            const is_active = document.getElementById('is_active').checked;
+            const password = document.getElementById('password').value;
+            
+            const successDiv = document.getElementById('alert-success');
+            const errorDiv = document.getElementById('alert-error');
+            
+            successDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            
+            if (password && password.length < 6) {
+                errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const updateData = {
+                email,
+                full_name,
+                role_id,
+                is_active
+            };
+            
+            if (password) {
+                updateData.password = password;
+            }
+            
+            try {
+                const response = await fetch(`/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Guardar permisos (solo si no es admin)
+                    const roleSelect = parseInt(document.getElementById('role_id').value);
+                    if (roleSelect !== 1) {
+                        const permisos = {};
+                        MODULOS.forEach(m => {
+                            const cb = document.getElementById(`perm_${m}`);
+                            permisos[m] = cb ? cb.checked : false;
+                        });
+                        await fetch(`/api/users/${userId}/permissions`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(permisos)
+                        });
+                    }
+
+                    successDiv.textContent = 'Usuario actualizado correctamente';
+                    successDiv.style.display = 'block';
+
+                    setTimeout(() => { window.location.href = '/users'; }, 1500);
+                } else {
+                    errorDiv.textContent = data.detail || 'Error al actualizar usuario';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Error de conexión';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('user_id');
+            window.location.href = '/login';
+        }
+
+        // Cargar al iniciar
+        async function init() {
+            const isAdmin = await checkRole();
+            if (isAdmin) {
+                await loadUser();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -534,8 +534,14 @@ function aplicarPermisos(perms) {
 }
 
 async function initAuth() {
-  // Recoger token pasado por URL tras login cross-origin (file:// <-> http://)
+  // Limpiar token si el sistema acaba de arrancar (parámetro fresh=1)
   const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('fresh') === '1') {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_role');
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  // Recoger token pasado por URL tras login cross-origin (file:// <-> http://)
   const urlToken = urlParams.get('auth_token');
   if (urlToken) {
     localStorage.setItem('token', urlToken);

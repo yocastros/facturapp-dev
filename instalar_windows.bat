@@ -28,8 +28,16 @@ python --version >nul 2>&1
 if %errorLevel% neq 0 (
     echo      Descargando Python 3.11...
     powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile '%TEMP%\python_inst.exe'"
-    "%TEMP%\python_inst.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_tcltk=1
+    echo      Instalando Python (requiere confirmacion UAC)...
+    "%TEMP%\python_inst.exe" /passive InstallAllUsers=1 PrependPath=1 Include_tcltk=1
     del "%TEMP%\python_inst.exe"
+    set "PATH=C:\Program Files\Python311;C:\Program Files\Python311\Scripts;%PATH%"
+    "C:\Program Files\Python311\python.exe" --version >nul 2>&1
+    if %errorLevel% neq 0 (
+        echo [ERROR] Python no se pudo instalar. Intentalo manualmente desde python.org
+        pause
+        exit /b 1
+    )
     echo [OK] Python instalado
 ) else (
     python --version
@@ -84,16 +92,16 @@ echo.
 echo [5/6] Instalando dependencias Python...
 
 echo      Sistema de Facturas...
-cd /d "%INSTDIR%\sistema_facturas\backend"
-python -m pip install --upgrade pip -q
-python -m pip install -r requirements.txt -q
+cd /d "%INSTDIR%\backend"
+"C:\Program Files\Python311\python.exe" -m pip install --upgrade pip -q
+"C:\Program Files\Python311\python.exe" -m pip install -r requirements.txt -q
 
 echo      Sistema de Usuarios...
 cd /d "%INSTDIR%\sistema_usuarios"
-python -m pip install -r requirements.txt -q
+"C:\Program Files\Python311\python.exe" -m pip install -r requirements.txt -q
 
 echo      Dependencias de arranque...
-python -m pip install pystray pillow pywin32 uvicorn -q
+"C:\Program Files\Python311\python.exe" -m pip install pystray pillow pywin32 uvicorn -q
 
 echo [OK] Dependencias instaladas
 
