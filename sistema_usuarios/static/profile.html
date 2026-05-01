@@ -4,333 +4,130 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Perfil - Sistema HORECA</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-        }
-
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .navbar h1 {
-            font-size: 24px;
-        }
-
-        .nav-links button {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: inherit;
-            margin-left: 20px;
-            text-decoration: none;
-            font-family: inherit;
-        }
-
-        .nav-links button:hover {
-            opacity: 0.8;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-
-        .card {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .card h2 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-
-        .section-title {
-            color: #667eea;
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin: 25px 0 15px 0;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e1e1e1;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: 600;
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e1e1e1;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        input:disabled {
-            background: #f5f5f5;
-            color: #999;
-            cursor: not-allowed;
-        }
-
-        .password-hint {
-            font-size: 12px;
-            color: #888;
-            margin-top: 5px;
-        }
-
-        .btn {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-            font-family: inherit;
-        }
-
-        .btn:hover {
-            background: #5568d3;
-        }
-
-        .btn-secondary {
-            background: #95a5a6;
-            margin-top: 10px;
-        }
-
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert-success {
-            background: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
-        }
-
-        .alert-error {
-            background: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .user-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-
-        .user-info p {
-            margin: 5px 0;
-            color: #666;
-        }
-
-        .user-info strong {
-            color: #333;
-        }
-
-        .role-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .role-admin {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .role-advanced {
-            background: #3498db;
-            color: white;
-        }
-
-        .role-basic {
-            background: #95a5a6;
-            color: white;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-    </style>
-<base target="_blank">
+    <link rel="stylesheet" href="/static/sistema_usuarios_shared.css">
 </head>
 <body>
     <nav class="navbar">
-        <h1>🔐 Sistema HORECA</h1>
-        <div class="nav-links">
-            <button onclick="window.location.href='/dashboard'">Dashboard</button>
-            <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
-            <button onclick="window.location.href='/profile'">Mi Perfil</button>
-            <button onclick="logout()">Cerrar Sesión</button>
-        </div>
+      <div class="navbar-brand">
+        <h1>Gestión Facturas</h1>
+        <span>& Albaranes</span>
+      </div>
+      <div class="navbar-links">
+        <a href="/dashboard">Dashboard</a>
+        <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
+        <a href="/profile">Mi perfil</a>
+        <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
+      </div>
     </nav>
 
     <div class="container">
         <div class="card">
             <h2>👤 Mi Perfil</h2>
-            
+
             <div id="loading" class="loading">Cargando perfil...</div>
-            
+
             <div id="form-container" style="display: none;">
-                <div class="user-info">
-                    <p><strong>ID:</strong> <span id="user-id"></span></p>
-                    <p><strong>Usuario:</strong> <span id="user-username"></span></p>
-                    <p><strong>Rol:</strong> <span id="user-role" class="role-badge"></span></p>
-                    <p><strong>Miembro desde:</strong> <span id="user-created"></span></p>
+                <div class="user-info-card">
+                    <div class="user-avatar-lg" id="user-avatar-initials"></div>
+                    <div>
+                        <div class="user-info-name"><span id="user-username"></span></div>
+                        <div class="user-info-email">
+                            <span id="user-role" class="role-badge"></span>
+                            &nbsp;·&nbsp; Miembro desde <span id="user-created"></span>
+                        </div>
+                    </div>
                 </div>
-                
+
                 <div id="alert-success" class="alert alert-success"></div>
                 <div id="alert-error" class="alert alert-error"></div>
-                
+
                 <form id="profileForm">
                     <div class="section-title">Información Personal</div>
-                    
+
                     <div class="form-group">
-                        <label for="email">Email *</label>
-                        <input type="email" id="email" name="email" required>
+                        <label class="form-label" for="email">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="full_name">Nombre Completo</label>
-                        <input type="text" id="full_name" name="full_name">
+                        <label class="form-label" for="full_name">Nombre Completo</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name">
                     </div>
-                    
-                    <button type="submit" class="btn">Guardar Cambios</button>
+
+                    <button type="submit" class="btn btn-primary btn-full">Guardar Cambios</button>
                 </form>
-                
+
                 <!-- Solo visible para usuarios NO admin -->
                 <form id="passwordForm" class="hidden" style="margin-top: 30px;">
                     <div class="section-title">Cambiar Contraseña</div>
-                    
+
                     <div class="form-group">
-                        <label for="current_password">Contraseña Actual *</label>
-                        <input type="password" id="current_password" name="current_password" placeholder="Tu contraseña actual">
+                        <label class="form-label" for="current_password">Contraseña Actual *</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password" placeholder="Tu contraseña actual">
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="new_password">Nueva Contraseña *</label>
-                        <input type="password" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres">
-                        <p class="password-hint">Mínimo 6 caracteres.</p>
+                        <label class="form-label" for="new_password">Nueva Contraseña *</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres">
+                        <div class="form-hint">Mínimo 6 caracteres.</div>
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="confirm_password">Confirmar Nueva Contraseña *</label>
-                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Repite la nueva contraseña">
+                        <label class="form-label" for="confirm_password">Confirmar Nueva Contraseña *</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Repite la nueva contraseña">
                     </div>
-                    
-                    <button type="submit" class="btn">Cambiar Contraseña</button>
+
+                    <button type="submit" class="btn btn-primary btn-full">Cambiar Contraseña</button>
                 </form>
-                
-                <button onclick="window.location.href='/dashboard'" class="btn btn-secondary" style="display: block; text-align: center; margin-top: 20px;">Volver al Dashboard</button>
+
+                <button type="button" onclick="window.location.href='/dashboard'" class="btn btn-outline btn-full" style="margin-top: 16px;">Volver al Dashboard</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Verificar que esté logueado
         const token = localStorage.getItem('token');
-        if (!token) {
-            window.location.href = '/login';
-        }
+        if (!token) window.location.href = '/login';
 
         let isAdmin = false;
 
-        // Cargar datos del usuario
         async function loadProfile() {
             const loadingDiv = document.getElementById('loading');
             const formContainer = document.getElementById('form-container');
 
             try {
                 const response = await fetch('/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
                     const user = await response.json();
-                    
-                    // Mostrar info del usuario
-                    document.getElementById('user-id').textContent = user.id;
-                    document.getElementById('user-username').textContent = user.username;
+
+                    document.getElementById('user-username').textContent = user.full_name || user.username;
+
+                    const initials = (user.full_name || user.username).slice(0, 2).toUpperCase();
+                    document.getElementById('user-avatar-initials').textContent = initials;
+
                     document.getElementById('user-created').textContent = new Date(user.created_at).toLocaleDateString('es-ES');
-                    
-                    // Mostrar rol con badge
+
                     const roleBadge = document.getElementById('user-role');
                     roleBadge.textContent = user.role.toUpperCase();
                     roleBadge.className = `role-badge role-${user.role}`;
-                    
-                    // Llenar formulario
+
                     document.getElementById('email').value = user.email;
                     document.getElementById('full_name').value = user.full_name || '';
-                    
-                    // Verificar si es admin
+
                     isAdmin = user.role === 'admin';
-                    
-                    // Mostrar opciones de admin solo si el rol es admin
+
                     if (isAdmin) {
                         document.getElementById('nav-users').classList.remove('hidden');
                     } else {
-                        // Mostrar cambio de contraseña solo para usuarios NO admin
                         document.getElementById('passwordForm').classList.remove('hidden');
                     }
-                    
-                    // Guardar datos
+
                     localStorage.setItem('user_id', user.id);
                     localStorage.setItem('role', user.role);
-                    
+
                     loadingDiv.style.display = 'none';
                     formContainer.style.display = 'block';
                 } else {
@@ -341,23 +138,18 @@
             }
         }
 
-        // Guardar cambios de perfil
         document.getElementById('profileForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const email = document.getElementById('email').value;
             const full_name = document.getElementById('full_name').value;
-            
             const successDiv = document.getElementById('alert-success');
             const errorDiv = document.getElementById('alert-error');
-            
-            // Ocultar alertas previas
+            const userId = localStorage.getItem('user_id');
+
             successDiv.style.display = 'none';
             errorDiv.style.display = 'none';
-            
-            // Obtener ID del usuario
-            const userId = localStorage.getItem('user_id');
-            
+
             try {
                 const response = await fetch(`/users/${userId}`, {
                     method: 'PUT',
@@ -365,14 +157,11 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
-                        email,
-                        full_name
-                    })
+                    body: JSON.stringify({ email, full_name })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     successDiv.textContent = 'Perfil actualizado correctamente';
                     successDiv.style.display = 'block';
@@ -386,87 +175,72 @@
             }
         });
 
-        // Cambiar contraseña (solo para usuarios NO admin)
         document.getElementById('passwordForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            // Si es admin, no permitir cambiar contraseña desde aquí
+
             if (isAdmin) {
                 const errorDiv = document.getElementById('alert-error');
                 errorDiv.textContent = 'Los administradores deben cambiar contraseñas desde Gestionar Usuarios';
                 errorDiv.style.display = 'block';
                 return;
             }
-            
+
             const current_password = document.getElementById('current_password').value;
             const new_password = document.getElementById('new_password').value;
             const confirm_password = document.getElementById('confirm_password').value;
-            
             const successDiv = document.getElementById('alert-success');
             const errorDiv = document.getElementById('alert-error');
-            
-            // Ocultar alertas previas
+            const userId = localStorage.getItem('user_id');
+            const username = document.getElementById('user-username').textContent;
+
             successDiv.style.display = 'none';
             errorDiv.style.display = 'none';
-            
-            // Validaciones
+
             if (!current_password) {
                 errorDiv.textContent = 'Debes ingresar tu contraseña actual';
                 errorDiv.style.display = 'block';
                 return;
             }
-            
+
             if (new_password.length < 6) {
                 errorDiv.textContent = 'La nueva contraseña debe tener al menos 6 caracteres';
                 errorDiv.style.display = 'block';
                 return;
             }
-            
+
             if (new_password !== confirm_password) {
                 errorDiv.textContent = 'Las contraseñas nuevas no coinciden';
                 errorDiv.style.display = 'block';
                 return;
             }
-            
-            // Obtener ID y username del usuario
-            const userId = localStorage.getItem('user_id');
-            const username = document.getElementById('user-username').textContent;
-            
+
             try {
-                // Primero verificar la contraseña actual
                 const verifyResponse = await fetch('/token', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(current_password)}`
                 });
-                
+
                 if (!verifyResponse.ok) {
                     errorDiv.textContent = 'La contraseña actual es incorrecta';
                     errorDiv.style.display = 'block';
                     return;
                 }
-                
-                // Si la contraseña actual es correcta, actualizar
+
                 const response = await fetch(`/users/${userId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({
-                        password: new_password
-                    })
+                    body: JSON.stringify({ password: new_password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     successDiv.textContent = 'Contraseña cambiada correctamente';
                     successDiv.style.display = 'block';
-                    
-                    // Limpiar campos
                     document.getElementById('current_password').value = '';
                     document.getElementById('new_password').value = '';
                     document.getElementById('confirm_password').value = '';
@@ -480,14 +254,6 @@
             }
         });
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('role');
-            localStorage.removeItem('user_id');
-            window.location.href = '/login';
-        }
-
-        // Cargar perfil al iniciar
         loadProfile();
     </script>
 </body>

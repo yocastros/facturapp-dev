@@ -4,241 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestionar Usuarios - Sistema HORECA</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f6fa;
-        }
-
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .navbar h1 {
-            font-size: 24px;
-        }
-
-        .nav-links button {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: inherit;
-            margin-left: 20px;
-            text-decoration: none;
-            font-family: inherit;
-        }
-
-        .nav-links button:hover {
-            opacity: 0.8;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-
-        .header-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .header-actions h2 {
-            color: #333;
-        }
-
-        .btn {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-            font-family: inherit;
-        }
-
-        .btn:hover {
-            background: #5568d3;
-        }
-
-        .btn-success {
-            background: #27ae60;
-        }
-
-        .btn-success:hover {
-            background: #219a52;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-
-        .btn-warning {
-            background: #f39c12;
-        }
-
-        .btn-warning:hover {
-            background: #d68910;
-        }
-
-        .card {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #e1e1e1;
-        }
-
-        th {
-            background: #f8f9fa;
-            color: #555;
-            font-weight: 600;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .role-badge {
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .role-admin {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .role-advanced {
-            background: #3498db;
-            color: white;
-        }
-
-        .role-basic {
-            background: #95a5a6;
-            color: white;
-        }
-
-        .status-active {
-            color: #27ae60;
-            font-weight: 600;
-        }
-
-        .status-inactive {
-            color: #e74c3c;
-            font-weight: 600;
-        }
-
-        .actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .actions button {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert-success {
-            background: #efe;
-            color: #3c3;
-            border: 1px solid #cfc;
-        }
-
-        .alert-error {
-            background: #fee;
-            color: #c33;
-            border: 1px solid #fcc;
-        }
-
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: #666;
-        }
-
-        .empty-state h3 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .access-denied {
-            text-align: center;
-            padding: 60px;
-            color: #666;
-        }
-
-        .access-denied h2 {
-            color: #e74c3c;
-            margin-bottom: 20px;
-        }
-    </style>
-<base target="_blank">
+    <link rel="stylesheet" href="/static/sistema_usuarios_shared.css">
 </head>
 <body>
     <nav class="navbar">
-        <h1>🔐 Sistema HORECA</h1>
-        <div class="nav-links">
-            <button onclick="window.location.href='/dashboard'">Dashboard</button>
-            <button id="nav-users" onclick="window.location.href='/users'">Usuarios</button>
-            <button onclick="window.location.href='/profile'">Mi Perfil</button>
-            <button onclick="logout()">Cerrar Sesión</button>
-        </div>
+      <div class="navbar-brand">
+        <h1>Gestión Facturas</h1>
+        <span>& Albaranes</span>
+      </div>
+      <div class="navbar-links">
+        <a href="/dashboard">Dashboard</a>
+        <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
+        <a href="/profile">Mi perfil</a>
+        <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
+      </div>
     </nav>
 
     <div class="container">
@@ -286,43 +65,40 @@
     </div>
 
     <script>
-        // Verificar que esté logueado
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
             window.location.href = '/login';
         }
 
-        // Variable para almacenar el ID del usuario logueado
         let currentUserId = null;
         let userRole = null;
 
-        // Verificar rol del usuario
         async function checkRole() {
             try {
                 const response = await fetch('/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 if (response.ok) {
                     const user = await response.json();
                     currentUserId = user.id;
                     userRole = user.role;
                     localStorage.setItem('user_id', user.id);
                     localStorage.setItem('role', user.role);
-                    
-                    // Si no es admin, mostrar acceso denegado
+
+                    if (user.role === 'admin') {
+                        document.getElementById('nav-users').classList.remove('hidden');
+                    }
+
                     if (user.role !== 'admin') {
                         document.getElementById('content').style.display = 'none';
                         document.getElementById('access-denied').style.display = 'block';
                         return false;
                     }
-                    
+
                     return true;
                 } else {
-                    // Token inválido, redirigir a login
                     localStorage.removeItem('token');
                     window.location.href = '/login';
                     return false;
@@ -333,7 +109,6 @@
             }
         }
 
-        // Cargar lista de usuarios
         async function loadUsers() {
             const loadingDiv = document.getElementById('loading');
             const tableContainer = document.getElementById('users-table-container');
@@ -342,14 +117,12 @@
 
             try {
                 const response = await fetch('/api/users', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
                     const users = await response.json();
-                    
+
                     loadingDiv.style.display = 'none';
 
                     if (users.length === 0) {
@@ -358,8 +131,7 @@
                     }
 
                     tableContainer.style.display = 'block';
-                    
-                    // Renderizar usuarios
+
                     tableBody.innerHTML = users.map(user => {
                         const isCurrentUser = user.id === currentUserId;
                         return `
@@ -379,7 +151,6 @@
                         </tr>
                     `}).join('');
                 } else if (response.status === 403) {
-                    // Acceso denegado por el backend
                     loadingDiv.textContent = 'No tienes permiso para ver esta información';
                 } else {
                     loadingDiv.textContent = 'Error al cargar usuarios';
@@ -390,11 +161,7 @@
         }
 
         function getRoleName(role) {
-            const roles = {
-                'admin': 'Administrador',
-                'advanced': 'Avanzado',
-                'basic': 'Básico'
-            };
+            const roles = { 'admin': 'Administrador', 'advanced': 'Avanzado', 'basic': 'Básico' };
             return roles[role] || role;
         }
 
@@ -417,16 +184,12 @@
                 return;
             }
 
-            if (!confirm(`¿Estás seguro de eliminar al usuario "${username}"?`)) {
-                return;
-            }
+            if (!confirm(`¿Estás seguro de eliminar al usuario "${username}"?`)) return;
 
             try {
                 const response = await fetch(`/api/users/${userId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
@@ -444,19 +207,9 @@
             }
         }
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('role');
-            localStorage.removeItem('user_id');
-            window.location.href = '/login';
-        }
-
-        // Cargar al iniciar
         async function init() {
             const isAdmin = await checkRole();
-            if (isAdmin) {
-                await loadUsers();
-            }
+            if (isAdmin) await loadUsers();
         }
 
         init();

@@ -56,7 +56,7 @@ def crear_launcher(zip_path):
     print(f"      ZIP embebido: {len(zip_b64)} bytes base64")
 
     code = r"""
-import os, sys, subprocess, shutil, zipfile, base64, tempfile
+import os, sys, subprocess, shutil, zipfile, base64, tempfile, glob
 import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
@@ -65,6 +65,28 @@ import threading, winreg, urllib.request
 INSTALL_DIR  = Path("C:/FacturasAlbaranes")
 TESSDATA_DIR = Path("C:/Program Files/Tesseract-OCR")
 POPPLER_DIR  = Path("C:/poppler")
+
+def encontrar_python():
+    # Localiza el ejecutable Python disponible en el sistema
+    # 1. Python en el PATH del sistema
+    p = shutil.which('python') or shutil.which('python3')
+    if p:
+        return Path(p)
+    # 2. Rutas estándar de instalación global
+    for patron in [
+        "C:/Program Files/Python3*/python.exe",
+        "C:/Program Files (x86)/Python3*/python.exe",
+    ]:
+        encontrados = sorted(glob.glob(patron))
+        if encontrados:
+            return Path(encontrados[-1])
+    # 3. Instalación por usuario (AppData)
+    appdata = os.environ.get("LOCALAPPDATA", "")
+    if appdata:
+        encontrados = sorted(glob.glob(f"{appdata}/Programs/Python/Python*/python.exe"))
+        if encontrados:
+            return Path(encontrados[-1])
+    return None
 
 PROGRAMA_ZIP_B64 = "PLACEHOLDER_B64"
 
@@ -135,9 +157,7 @@ def configurar_entorno(log):
 def crear_acceso_directo(log):
     log("Creando acceso directo...")
     try:
-        python_exe = Path("C:/Program Files/Python311/python.exe")
-        if not python_exe.exists():
-            python_exe = Path(sys.executable)
+        python_exe = encontrar_python() or Path(sys.executable)
         r = subprocess.run(
             [str(python_exe), str(INSTALL_DIR / "crear_acceso_directo.py")],
             capture_output=True, text=True, timeout=30, cwd=str(INSTALL_DIR)
@@ -150,9 +170,9 @@ def crear_acceso_directo(log):
         log("Error acceso directo: " + str(e))
 
 def instalar_python(log):
-    python_exe = Path("C:/Program Files/Python311/python.exe")
-    if python_exe.exists():
-        log("Python ya instalado"); return
+    python_exe = encontrar_python()
+    if python_exe and python_exe.exists():
+        log(f"Python ya instalado: {python_exe}"); return
     log("Descargando Python 3.11...")
     url = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
     dest = Path(os.environ.get("TEMP", "C:/Temp")) / "python_inst.exe"
@@ -166,7 +186,7 @@ def instalar_python(log):
     log("Python instalado")
 
 def instalar_dependencias(log):
-    python = Path("C:/Program Files/Python311/python.exe")
+    python = encontrar_python() or Path("C:/Program Files/Python311/python.exe")
     if not python.exists():
         log("ERROR: Python no encontrado, saltando dependencias"); return
     install_dir = Path("C:/FacturasAlbaranes")

@@ -11,10 +11,10 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent
 DST = Path("C:/FacturasAlbaranes")
 
-CARPETAS = ["backend", "frontend"]
+CARPETAS = ["backend", "frontend", "sistema_usuarios"]
 ARCHIVOS = ["start.py", "crear_acceso_directo.py"]
 
-EXCLUIR_DIRS = {"__pycache__", "uploads", "reports"}
+EXCLUIR_DIRS = {"__pycache__", "uploads", "reports", "venv", ".git"}
 EXCLUIR_EXT  = {".pyc", ".db", ".sqlite3"}
 
 

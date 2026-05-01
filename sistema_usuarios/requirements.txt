@@ -4,5 +4,8 @@ python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 sqlalchemy==2.0.49
 pydantic==2.13.3
+pydantic[email]
 bcrypt==4.0.1
 cryptography==47.0.0
+python-multipart
+email-validator
