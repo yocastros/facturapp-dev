@@ -14,7 +14,7 @@
     <span>& Albaranes</span>
   </div>
   <div class="navbar-links">
-    <a href="/dashboard">Dashboard</a>
+    <a href="http://localhost:5000">Dashboard</a>
     <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
     <a href="/profile">Mi perfil</a>
     <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
@@ -32,7 +32,7 @@
         <div style="font-size:48px; margin-bottom:16px;">⛔</div>
         <h2 style="font-family:'Playfair Display',serif; color:var(--azul); margin-bottom:8px;">Acceso Denegado</h2>
         <p style="color:var(--gris-m); margin-bottom:24px;">No tienes permiso para acceder a esta página.</p>
-        <button onclick="window.location.href='/dashboard'" class="btn btn-primary">Volver al Dashboard</button>
+        <button onclick="window.location.href='http://localhost:5000'" class="btn btn-primary">Volver al Dashboard</button>
     </div>
 
     <!-- Contenido principal -->
