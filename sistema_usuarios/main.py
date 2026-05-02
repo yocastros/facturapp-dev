@@ -1,6 +1,10 @@
 # main.py
 # Archivo principal - API de usuarios con protección por roles
 
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from config_loader import get_secret_key
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +23,7 @@ from models import User, Role, UserPermission
 from schemas import UserCreate, UserUpdate, MODULOS_FACTURAS
 
 # Configuración de seguridad
-SECRET_KEY = "clave-secreta-muy-larga-cambiar-en-produccion"
+SECRET_KEY = get_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 horas (jornada laboral completa)
 

@@ -1,4 +1,7 @@
 import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from config_loader import get_secret_key
 import uuid
 import logging
 from datetime import datetime
@@ -39,7 +42,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Debe coincidir con SECRET_KEY del sistema de usuarios
-_JWT_SECRET = "clave-secreta-muy-larga-cambiar-en-produccion"
+_JWT_SECRET = get_secret_key()
 _JWT_ALGORITHM = "HS256"
 
 
