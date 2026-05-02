@@ -220,7 +220,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const d = await r.json();
     localStorage.setItem('token', d.access_token);
     const params = new URLSearchParams(window.location.search);
-    const next   = params.get('next') || '/';
+    const next   = params.get('next') || 'http://localhost:5000';
     const sep    = next.includes('?') ? '&' : '?';
     window.location.href = next + sep + 'auth_token=' + d.access_token;
   } catch(err) {
