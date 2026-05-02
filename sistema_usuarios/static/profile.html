@@ -3,258 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Perfil - Sistema HORECA</title>
+    <title>Mi Perfil — Gestión Facturas y Albaranes</title>
     <link rel="stylesheet" href="/static/sistema_usuarios_shared.css">
 </head>
 <body>
-    <nav class="navbar">
-      <div class="navbar-brand">
-        <h1>Gestión Facturas</h1>
-        <span>& Albaranes</span>
-      </div>
-      <div class="navbar-links">
-        <a href="/dashboard">Dashboard</a>
-        <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
-        <a href="/profile">Mi perfil</a>
-        <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
-      </div>
-    </nav>
 
-    <div class="container">
-        <div class="card">
-            <h2>👤 Mi Perfil</h2>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <h1>Gestión Facturas</h1>
+    <span>& Albaranes</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/dashboard">Dashboard</a>
+    <button type="button" id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
+    <a href="/profile">Mi perfil</a>
+    <button type="button" onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
+  </div>
+</nav>
 
-            <div id="loading" class="loading">Cargando perfil...</div>
+<div class="page-wrapper">
 
-            <div id="form-container" style="display: none;">
-                <div class="user-info-card">
-                    <div class="user-avatar-lg" id="user-avatar-initials"></div>
-                    <div>
-                        <div class="user-info-name"><span id="user-username"></span></div>
-                        <div class="user-info-email">
-                            <span id="user-role" class="role-badge"></span>
-                            &nbsp;·&nbsp; Miembro desde <span id="user-created"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="alert-success" class="alert alert-success"></div>
-                <div id="alert-error" class="alert alert-error"></div>
-
-                <form id="profileForm">
-                    <div class="section-title">Información Personal</div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="email">Email *</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="full_name">Nombre Completo</label>
-                        <input type="text" class="form-control" id="full_name" name="full_name">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-full">Guardar Cambios</button>
-                </form>
-
-                <!-- Solo visible para usuarios NO admin -->
-                <form id="passwordForm" class="hidden" style="margin-top: 30px;">
-                    <div class="section-title">Cambiar Contraseña</div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="current_password">Contraseña Actual *</label>
-                        <input type="password" class="form-control" id="current_password" name="current_password" placeholder="Tu contraseña actual">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="new_password">Nueva Contraseña *</label>
-                        <input type="password" class="form-control" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres">
-                        <div class="form-hint">Mínimo 6 caracteres.</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="confirm_password">Confirmar Nueva Contraseña *</label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Repite la nueva contraseña">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-full">Cambiar Contraseña</button>
-                </form>
-
-                <button type="button" onclick="window.location.href='/dashboard'" class="btn btn-outline btn-full" style="margin-top: 16px;">Volver al Dashboard</button>
-            </div>
+    <div class="page-header">
+        <div>
+            <h2>Mi Perfil</h2>
+            <p>Gestiona tu información personal y contraseña</p>
         </div>
+        <button type="button" onclick="window.location.href='/dashboard'" class="btn btn-outline">← Dashboard</button>
     </div>
 
-    <script>
-        const token = localStorage.getItem('token');
-        if (!token) window.location.href = '/login';
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Datos de la cuenta</span>
+        </div>
 
-        let isAdmin = false;
+        <div id="loading" style="padding:40px; text-align:center; color:var(--gris-m);">
+            <div class="spinner"></div>
+            <div style="margin-top:12px; font-size:13px;">Cargando perfil...</div>
+        </div>
 
-        async function loadProfile() {
-            const loadingDiv = document.getElementById('loading');
-            const formContainer = document.getElementById('form-container');
+        <div id="form-container" style="display:none; padding:24px;">
+            <div class="user-info-card">
+                <div class="user-avatar-lg" id="user-avatar-initials"></div>
+                <div>
+                    <div class="user-info-name"><span id="user-username"></span></div>
+                    <div class="user-info-email">
+                        <span id="user-role" class="role-badge"></span>
+                        &nbsp;·&nbsp; Miembro desde <span id="user-created"></span>
+                    </div>
+                </div>
+            </div>
 
-            try {
-                const response = await fetch('/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            <form id="profileForm">
+                <div class="section-title">Información Personal</div>
 
-                if (response.ok) {
-                    const user = await response.json();
+                <div class="form-group">
+                    <label class="form-label" for="email">Email *</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
 
-                    document.getElementById('user-username').textContent = user.full_name || user.username;
+                <div class="form-group">
+                    <label class="form-label" for="full_name">Nombre Completo</label>
+                    <input type="text" class="form-control" id="full_name" name="full_name">
+                </div>
 
-                    const initials = (user.full_name || user.username).slice(0, 2).toUpperCase();
-                    document.getElementById('user-avatar-initials').textContent = initials;
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </form>
 
-                    document.getElementById('user-created').textContent = new Date(user.created_at).toLocaleDateString('es-ES');
+            <!-- Solo visible para usuarios NO admin -->
+            <form id="passwordForm" class="hidden" style="margin-top:30px;">
+                <div class="section-title">Cambiar Contraseña</div>
 
-                    const roleBadge = document.getElementById('user-role');
-                    roleBadge.textContent = user.role.toUpperCase();
-                    roleBadge.className = `role-badge role-${user.role}`;
+                <div class="form-group">
+                    <label class="form-label" for="current_password">Contraseña Actual *</label>
+                    <input type="password" class="form-control" id="current_password" name="current_password" placeholder="Tu contraseña actual">
+                </div>
 
-                    document.getElementById('email').value = user.email;
-                    document.getElementById('full_name').value = user.full_name || '';
+                <div class="form-group">
+                    <label class="form-label" for="new_password">Nueva Contraseña *</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password" placeholder="Mínimo 6 caracteres">
+                    <div class="form-hint">Mínimo 6 caracteres.</div>
+                </div>
 
-                    isAdmin = user.role === 'admin';
+                <div class="form-group">
+                    <label class="form-label" for="confirm_password">Confirmar Nueva Contraseña *</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Repite la nueva contraseña">
+                </div>
 
-                    if (isAdmin) {
-                        document.getElementById('nav-users').classList.remove('hidden');
-                    } else {
-                        document.getElementById('passwordForm').classList.remove('hidden');
-                    }
+                <button type="submit" class="btn btn-primary">Cambiar Contraseña</button>
+            </form>
+        </div>
+    </div>
+</div>
 
-                    localStorage.setItem('user_id', user.id);
-                    localStorage.setItem('role', user.role);
+<div class="toast-container" id="toasts"></div>
 
-                    loadingDiv.style.display = 'none';
-                    formContainer.style.display = 'block';
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    let isAdmin = false;
+
+    function toast(msg, tipo = 'info') {
+        const c = document.getElementById('toasts');
+        const t = document.createElement('div');
+        t.className = `toast toast-${tipo}`;
+        t.innerHTML = `<span>${tipo==='success'?'✓':tipo==='error'?'✗':'ℹ'}</span><span>${msg}</span>`;
+        c.appendChild(t);
+        setTimeout(() => { t.style.animation='fadeOut .3s ease forwards'; setTimeout(()=>t.remove(),300); }, 4000);
+    }
+
+    async function loadProfile() {
+        const loadingDiv = document.getElementById('loading');
+        const formContainer = document.getElementById('form-container');
+
+        try {
+            const response = await fetch('/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const user = await response.json();
+
+                document.getElementById('user-username').textContent = user.full_name || user.username;
+
+                const initials = (user.full_name || user.username).slice(0, 2).toUpperCase();
+                document.getElementById('user-avatar-initials').textContent = initials;
+
+                document.getElementById('user-created').textContent = new Date(user.created_at).toLocaleDateString('es-ES');
+
+                const roleBadge = document.getElementById('user-role');
+                roleBadge.textContent = user.role.toUpperCase();
+                roleBadge.className = `role-badge role-${user.role}`;
+
+                document.getElementById('email').value = user.email;
+                document.getElementById('full_name').value = user.full_name || '';
+
+                isAdmin = user.role === 'admin';
+
+                if (isAdmin) {
+                    document.getElementById('nav-users').classList.remove('hidden');
                 } else {
-                    loadingDiv.textContent = 'Error al cargar perfil';
+                    document.getElementById('passwordForm').classList.remove('hidden');
                 }
-            } catch (error) {
-                loadingDiv.textContent = 'Error de conexión';
+
+                localStorage.setItem('user_id', user.id);
+                localStorage.setItem('role', user.role);
+
+                loadingDiv.style.display = 'none';
+                formContainer.style.display = 'block';
+            } else {
+                loadingDiv.innerHTML = '<p style="color:var(--rojo)">Error al cargar perfil</p>';
             }
+        } catch (error) {
+            loadingDiv.innerHTML = '<p style="color:var(--rojo)">Error de conexión</p>';
+        }
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value;
+        const full_name = document.getElementById('full_name').value;
+        const userId = localStorage.getItem('user_id');
+
+        try {
+            const response = await fetch(`/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ email, full_name })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                toast('Perfil actualizado correctamente', 'success');
+            } else {
+                toast(data.detail || 'Error al actualizar perfil', 'error');
+            }
+        } catch (error) {
+            toast('Error de conexión', 'error');
+        }
+    });
+
+    document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (isAdmin) {
+            toast('Los administradores deben cambiar contraseñas desde Gestionar Usuarios', 'error');
+            return;
         }
 
-        document.getElementById('profileForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        const current_password = document.getElementById('current_password').value;
+        const new_password = document.getElementById('new_password').value;
+        const confirm_password = document.getElementById('confirm_password').value;
+        const userId = localStorage.getItem('user_id');
+        const username = document.getElementById('user-username').textContent;
 
-            const email = document.getElementById('email').value;
-            const full_name = document.getElementById('full_name').value;
-            const successDiv = document.getElementById('alert-success');
-            const errorDiv = document.getElementById('alert-error');
-            const userId = localStorage.getItem('user_id');
+        if (!current_password) {
+            toast('Debes ingresar tu contraseña actual', 'error');
+            return;
+        }
+        if (new_password.length < 6) {
+            toast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+            return;
+        }
+        if (new_password !== confirm_password) {
+            toast('Las contraseñas nuevas no coinciden', 'error');
+            return;
+        }
 
-            successDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
+        try {
+            const verifyResponse = await fetch('/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(current_password)}`
+            });
 
-            try {
-                const response = await fetch(`/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ email, full_name })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    successDiv.textContent = 'Perfil actualizado correctamente';
-                    successDiv.style.display = 'block';
-                } else {
-                    errorDiv.textContent = data.detail || 'Error al actualizar perfil';
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.textContent = 'Error de conexión';
-                errorDiv.style.display = 'block';
-            }
-        });
-
-        document.getElementById('passwordForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            if (isAdmin) {
-                const errorDiv = document.getElementById('alert-error');
-                errorDiv.textContent = 'Los administradores deben cambiar contraseñas desde Gestionar Usuarios';
-                errorDiv.style.display = 'block';
+            if (!verifyResponse.ok) {
+                toast('La contraseña actual es incorrecta', 'error');
                 return;
             }
 
-            const current_password = document.getElementById('current_password').value;
-            const new_password = document.getElementById('new_password').value;
-            const confirm_password = document.getElementById('confirm_password').value;
-            const successDiv = document.getElementById('alert-success');
-            const errorDiv = document.getElementById('alert-error');
-            const userId = localStorage.getItem('user_id');
-            const username = document.getElementById('user-username').textContent;
+            const response = await fetch(`/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ password: new_password })
+            });
 
-            successDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
+            const data = await response.json();
 
-            if (!current_password) {
-                errorDiv.textContent = 'Debes ingresar tu contraseña actual';
-                errorDiv.style.display = 'block';
-                return;
+            if (response.ok) {
+                toast('Contraseña cambiada correctamente', 'success');
+                document.getElementById('current_password').value = '';
+                document.getElementById('new_password').value = '';
+                document.getElementById('confirm_password').value = '';
+            } else {
+                toast(data.detail || 'Error al cambiar contraseña', 'error');
             }
+        } catch (error) {
+            toast('Error de conexión', 'error');
+        }
+    });
 
-            if (new_password.length < 6) {
-                errorDiv.textContent = 'La nueva contraseña debe tener al menos 6 caracteres';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            if (new_password !== confirm_password) {
-                errorDiv.textContent = 'Las contraseñas nuevas no coinciden';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            try {
-                const verifyResponse = await fetch('/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(current_password)}`
-                });
-
-                if (!verifyResponse.ok) {
-                    errorDiv.textContent = 'La contraseña actual es incorrecta';
-                    errorDiv.style.display = 'block';
-                    return;
-                }
-
-                const response = await fetch(`/users/${userId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ password: new_password })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    successDiv.textContent = 'Contraseña cambiada correctamente';
-                    successDiv.style.display = 'block';
-                    document.getElementById('current_password').value = '';
-                    document.getElementById('new_password').value = '';
-                    document.getElementById('confirm_password').value = '';
-                } else {
-                    errorDiv.textContent = data.detail || 'Error al cambiar contraseña';
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.textContent = 'Error de conexión';
-                errorDiv.style.display = 'block';
-            }
-        });
-
-        loadProfile();
-    </script>
+    loadProfile();
+</script>
 </body>
 </html>
