@@ -531,6 +531,10 @@ async def profile_page():
     return FileResponse(os.path.join(BASE_DIR, "static", "profile.html"))
 
 
+# Montar estáticos al final para que no interfiera con las rutas
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+
 # Ejecutar si corremos este archivo directamente
 if __name__ == "__main__":
     import uvicorn

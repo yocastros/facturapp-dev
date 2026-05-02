@@ -84,8 +84,27 @@ def obtener_poppler_path():
 backend_process = None
 usuarios_process = None
 
+def liberar_puerto(puerto):
+    """Mata cualquier proceso que esté usando el puerto dado."""
+    if SO != 'Windows':
+        return
+    try:
+        result = subprocess.run(
+            ['netstat', '-ano'],
+            capture_output=True, text=True
+        )
+        for line in result.stdout.splitlines():
+            if f':{puerto} ' in line and 'LISTENING' in line:
+                pid = line.split()[-1]
+                if pid.isdigit():
+                    subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+    except Exception:
+        pass
+
+
 def arrancar_usuarios():
     global usuarios_process
+    liberar_puerto(8000)
     python_exe = Path(sys.executable)
     ejecutable = str(python_exe.parent / 'python.exe') if (python_exe.parent / 'python.exe').exists() else str(python_exe)
     si = None
