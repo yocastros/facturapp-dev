@@ -12,7 +12,7 @@ SRC = Path(__file__).resolve().parent
 DST = Path("C:/FacturasAlbaranes")
 
 CARPETAS = ["backend", "frontend", "sistema_usuarios"]
-ARCHIVOS = ["start.py", "crear_acceso_directo.py"]
+ARCHIVOS = ["start.py", "crear_acceso_directo.py", "config_loader.py", "config.env"]
 
 EXCLUIR_DIRS = {"__pycache__", "uploads", "reports", "venv", ".git"}
 EXCLUIR_EXT  = {".pyc", ".db", ".sqlite3"}

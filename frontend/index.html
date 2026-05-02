@@ -454,6 +454,9 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     <div class="nav-item" data-module="reportes" onclick="showPage('reportes')">
       <span class="icon">📥</span><span>Reportes Excel</span>
     </div>
+    <div class="nav-item" data-module="proveedores" onclick="showPage('proveedores')">
+      <span class="icon">🏢</span><span>Proveedores</span>
+    </div>
     <div class="nav-item" id="nav-admin-usuarios" style="display:none" onclick="window.location.href='http://localhost:8000/users'">
       <span class="icon">👥</span><span>Gestionar Usuarios</span>
     </div>
@@ -862,6 +865,98 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
         </div>
       </div>
     </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">📊 Informe Contable</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Proveedor</label>
+            <select class="form-control" id="rep-cont-prov">
+              <option value="">Todos los proveedores</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Fecha Desde</label>
+              <input type="date" class="form-control" id="rep-cont-desde">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fecha Hasta</label>
+              <input type="date" class="form-control" id="rep-cont-hasta">
+            </div>
+          </div>
+          <button class="btn btn-gold" style="width:100%;justify-content:center" id="btn-contable" onclick="generarReporteContable()">
+            📥 Descargar Informe Contable
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">🔍 Análisis de Compras (CPP)</span></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Proveedor</label>
+            <select class="form-control" id="rep-anal-prov">
+              <option value="">Todos los proveedores</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Fecha Desde</label>
+              <input type="date" class="form-control" id="rep-anal-desde">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fecha Hasta</label>
+              <input type="date" class="form-control" id="rep-anal-hasta">
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px">
+            ℹ️ Solo incluye documentos con líneas de detalle extraídas por OCR
+          </div>
+          <button class="btn btn-gold" style="width:100%;justify-content:center" id="btn-analitico" onclick="generarReporteAnalitico()">
+            📥 Descargar Análisis de Compras
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PROVEEDORES ─── -->
+<div class="page" id="page-proveedores">
+  <div class="topbar">
+    <div class="topbar-title">
+      <h2>Proveedores</h2>
+      <p>Catálogo de proveedores del sistema</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary btn-sm" onclick="abrirModalProveedor(null)">+ Nuevo Proveedor</button>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="filtros">
+      <div class="search-bar">
+        <input type="text" id="busqueda-prov" placeholder="Buscar por nombre o CIF..." oninput="filtrarProveedores()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th><th>CIF</th><th>Email</th><th>Teléfono</th>
+              <th style="text-align:center">Documentos</th>
+              <th style="text-align:center">Activo</th>
+              <th style="text-align:center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-prov-body">
+            <tr><td colspan="7" class="empty-state"><div class="spinner spinner-dark"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -879,6 +974,64 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
       <button class="btn btn-danger btn-sm" id="btn-eliminar-modal">🗑 Eliminar</button>
       <a class="btn btn-outline btn-sm" id="btn-ver-archivo" href="#" target="_blank" style="display:none">📄 Ver Archivo</a>
       <button class="btn btn-outline" onclick="cerrarModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL PROVEEDOR FORM ─── -->
+<div class="modal-overlay" id="modal-prov-form">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-prov-titulo">Nuevo Proveedor</h3>
+      <button class="btn-close" onclick="cerrarModalProv()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prov-id">
+      <div class="form-group">
+        <label class="form-label">Nombre <span style="color:var(--rojo)">*</span></label>
+        <input type="text" class="form-control" id="prov-nombre" placeholder="Razón social">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-group">
+          <label class="form-label">CIF / NIF</label>
+          <input type="text" class="form-control" id="prov-cif" placeholder="B12345678">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input type="text" class="form-control" id="prov-telefono" placeholder="600 000 000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="prov-email" placeholder="info@proveedor.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección</label>
+        <input type="text" class="form-control" id="prov-direccion" placeholder="Calle, número, ciudad">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea class="form-control" id="prov-notas" rows="3" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModalProv()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProveedor()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL PROVEEDOR DETALLE ─── -->
+<div class="modal-overlay" id="modal-prov-detalle">
+  <div class="modal" style="width:700px">
+    <div class="modal-header">
+      <h3 id="modal-prov-det-titulo">Proveedor</h3>
+      <button class="btn-close" onclick="cerrarModalProvDetalle()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-prov-det-cuerpo"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" id="btn-editar-prov-det">✏️ Editar</button>
+      <button class="btn btn-outline" onclick="cerrarModalProvDetalle()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1032,9 +1185,11 @@ function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
   });
-  if (id === 'dashboard')  { cargarEstadisticas(); cargarRecientes(); }
-  if (id === 'documentos') cargarDocumentos();
-  if (id === 'neteo')      cargarNeteo();
+  if (id === 'dashboard')   { cargarEstadisticas(); cargarRecientes(); }
+  if (id === 'documentos')  cargarDocumentos();
+  if (id === 'neteo')       cargarNeteo();
+  if (id === 'proveedores') cargarProveedores();
+  if (id === 'reportes')    cargarProveedoresReportes();
 }
 
 /* ──────────────────────────────────────
@@ -1123,7 +1278,11 @@ function renderTablaDocumentos(docs) {
       <td><span class="badge ${doc.tipo==='factura'?'badge-factura':'badge-albaran'}">${doc.tipo==='factura'?'FACTURA':'ALBARÁN'}</span></td>
       <td><strong>${doc.numero||'—'}</strong></td>
       <td>${fmtFecha(doc.fecha)}</td>
-      <td>${doc.proveedor||'—'}</td>
+      <td>${doc.proveedor_normalizado
+          ? `<span style="color:var(--verde)">🔗 ${doc.proveedor||'—'}</span>`
+          : `<span style="color:#9E9E9E">${doc.proveedor||'—'}</span>`}${doc.lineas && doc.lineas.length > 0
+          ? ` <span style="background:var(--azul);color:#fff;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;margin-left:4px">📋 ${doc.lineas.length}</span>`
+          : ''}</td>
       <td>${doc.cif||'—'}</td>
       <td style="text-align:right"><strong>${fmt(doc.total)}</strong></td>
       <td><span class="badge ${badgeEstado(doc.estado)}">${doc.estado}</span></td>
@@ -1336,7 +1495,35 @@ async function verDetalle(id) {
         </div>
       </div>
       ${d.tipo==='factura'?`<div style="margin-top:16px"><div class="form-label">Albaranes Asociados</div><div>${albs}</div></div>`:''}
-      ${d.notas?`<div style="margin-top:16px"><div class="form-label">Notas</div><div style="font-size:13px;color:var(--text-primary)">${d.notas}</div></div>`:''}`;
+      ${d.notas?`<div style="margin-top:16px"><div class="form-label">Notas</div><div style="font-size:13px;color:var(--text-primary)">${d.notas}</div></div>`:''}
+      ${!d.proveedor_normalizado && d.proveedor ? `
+        <div style="margin-top:16px">
+          <button class="btn btn-outline btn-sm" onclick="proveedorDesdeDocumento(${d.id})">
+            📋 Añadir al catálogo de proveedores
+          </button>
+        </div>` : ''}
+      ${d.lineas && d.lineas.length > 0 ? `
+        <div style="margin-top:16px">
+          <div class="form-label" style="margin-bottom:8px">Líneas de Detalle (${d.lineas.length})</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Descripción</th><th style="text-align:right">Cantidad</th>
+                <th>Unidad</th><th style="text-align:right">Precio Unit.</th>
+                <th style="text-align:right">Importe</th>
+              </tr></thead>
+              <tbody>${d.lineas.map(l=>`
+                <tr>
+                  <td>${l.descripcion||'—'}</td>
+                  <td style="text-align:right">${l.cantidad||0}</td>
+                  <td>${l.unidad||'—'}</td>
+                  <td style="text-align:right">${fmt(l.precio_unitario)}</td>
+                  <td style="text-align:right"><strong>${fmt(l.importe_linea)}</strong></td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}`;
     const btnVer = document.getElementById('btn-ver-archivo');
     btnVer.href = `${API}/documentos/${id}/archivo`;
     btnVer.style.display = 'inline-flex';
@@ -1409,6 +1596,242 @@ function toast(msg, tipo='info') {
   t.innerHTML = `<span>${tipo==='success'?'✓':tipo==='error'?'✗':'ℹ'}</span><span>${msg}</span>`;
   c.appendChild(t);
   setTimeout(() => { t.style.animation='fadeOut .3s ease forwards'; setTimeout(()=>t.remove(),300); }, 4000);
+}
+
+/* ──────────────────────────────────────
+   PROVEEDORES
+   ────────────────────────────────────── */
+let provsCache = [];
+
+async function cargarProveedores() {
+  try {
+    const r = await fetch(`${API}/proveedores?por_pagina=500`, { headers: authHeaders() });
+    const d = await r.json();
+    provsCache = d.proveedores || [];
+    renderTablaProveedores(provsCache);
+  } catch(e) { toast('Error cargando proveedores', 'error'); }
+}
+
+function renderTablaProveedores(provs) {
+  const tbody = document.getElementById('tabla-prov-body');
+  if (!provs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="empty-icon">🏢</div><div class="empty-text">No hay proveedores registrados</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = provs.map(p => `
+    <tr onclick="verDetalleProveedor(${p.id})" style="cursor:pointer">
+      <td><strong>${p.nombre}</strong></td>
+      <td>${p.cif||'—'}</td>
+      <td>${p.email||'—'}</td>
+      <td>${p.telefono||'—'}</td>
+      <td style="text-align:center"><span class="badge badge-factura">${p.num_documentos}</span></td>
+      <td style="text-align:center">${p.activo?'<span class="badge badge-procesado">Sí</span>':'<span class="badge badge-error">No</span>'}</td>
+      <td style="text-align:center" onclick="event.stopPropagation()">
+        <button class="btn btn-xs btn-outline" style="margin-right:4px" onclick="abrirModalProveedor(${p.id})">✏️</button>
+        <button class="btn btn-xs btn-danger" onclick="eliminarProveedor(${p.id})">🗑</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarProveedores() {
+  const q = (document.getElementById('busqueda-prov').value || '').toLowerCase();
+  renderTablaProveedores(provsCache.filter(p =>
+    p.nombre.toLowerCase().includes(q) || (p.cif||'').toLowerCase().includes(q)
+  ));
+}
+
+function abrirModalProveedor(id) {
+  document.getElementById('prov-id').value = id || '';
+  document.getElementById('modal-prov-titulo').textContent = id ? 'Editar Proveedor' : 'Nuevo Proveedor';
+  ['nombre','cif','email','telefono','direccion','notas'].forEach(f => {
+    const el = document.getElementById(`prov-${f}`);
+    if (el) el.value = '';
+  });
+  if (id) {
+    const p = provsCache.find(x => x.id === id);
+    if (p) {
+      document.getElementById('prov-nombre').value    = p.nombre    || '';
+      document.getElementById('prov-cif').value       = p.cif       || '';
+      document.getElementById('prov-email').value     = p.email     || '';
+      document.getElementById('prov-telefono').value  = p.telefono  || '';
+      document.getElementById('prov-direccion').value = p.direccion || '';
+      document.getElementById('prov-notas').value     = p.notas     || '';
+    }
+  }
+  document.getElementById('modal-prov-form').classList.add('open');
+}
+
+function cerrarModalProv() { document.getElementById('modal-prov-form').classList.remove('open'); }
+
+async function guardarProveedor() {
+  const id     = document.getElementById('prov-id').value;
+  const nombre = document.getElementById('prov-nombre').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio', 'error'); return; }
+  const body = {
+    nombre,
+    cif:       document.getElementById('prov-cif').value.trim(),
+    email:     document.getElementById('prov-email').value.trim(),
+    telefono:  document.getElementById('prov-telefono').value.trim(),
+    direccion: document.getElementById('prov-direccion').value.trim(),
+    notas:     document.getElementById('prov-notas').value.trim(),
+  };
+  try {
+    const r = await fetch(id ? `${API}/proveedores/${id}` : `${API}/proveedores`, {
+      method:  id ? 'PUT' : 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body:    JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Error guardando proveedor', 'error'); return; }
+    toast(id ? '✅ Proveedor actualizado' : '✅ Proveedor creado', 'success');
+    cerrarModalProv();
+    cargarProveedores();
+    cargarProveedoresReportes();
+  } catch(e) { toast('Error guardando proveedor', 'error'); }
+}
+
+async function eliminarProveedor(id) {
+  if (!confirm('¿Eliminar este proveedor?')) return;
+  try {
+    const r = await fetch(`${API}/proveedores/${id}`, { method:'DELETE', headers:authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Error eliminando proveedor', 'error'); return; }
+    toast('Proveedor eliminado', 'success');
+    cargarProveedores();
+    cargarProveedoresReportes();
+  } catch(e) { toast('Error eliminando proveedor', 'error'); }
+}
+
+async function verDetalleProveedor(id) {
+  try {
+    const r = await fetch(`${API}/proveedores/${id}`, { headers: authHeaders() });
+    const p = await r.json();
+    document.getElementById('modal-prov-det-titulo').textContent = p.nombre;
+    const docs = p.ultimos_documentos || [];
+    document.getElementById('modal-prov-det-cuerpo').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          ${detRow('CIF / NIF', p.cif||'—')}
+          ${detRow('Email', p.email||'—')}
+          ${detRow('Teléfono', p.telefono||'—')}
+        </div>
+        <div>
+          ${detRow('Dirección', p.direccion||'—')}
+          ${detRow('Alta', p.fecha_alta ? new Date(p.fecha_alta).toLocaleDateString('es-ES') : '—')}
+          ${detRow('Activo', p.activo?'Sí':'No')}
+        </div>
+      </div>
+      ${p.notas ? `<div style="margin-bottom:16px">${detRow('Notas', p.notas)}</div>` : ''}
+      <div class="card-title" style="margin-bottom:10px">Últimos documentos (${docs.length})</div>
+      ${docs.length ? `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tipo</th><th>Nº</th><th>Fecha</th><th style="text-align:right">Total</th><th>Estado</th></tr></thead>
+          <tbody>${docs.map(d=>`
+            <tr>
+              <td><span class="badge ${d.tipo==='factura'?'badge-factura':'badge-albaran'}">${d.tipo==='factura'?'FACTURA':'ALBARÁN'}</span></td>
+              <td>${d.numero||'—'}</td>
+              <td>${fmtFecha(d.fecha)}</td>
+              <td style="text-align:right">${fmt(d.total)}</td>
+              <td><span class="badge ${badgeEstado(d.estado)}">${d.estado}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>`
+        : '<div class="empty-state" style="padding:20px"><div class="empty-text">Sin documentos asociados</div></div>'}`;
+    document.getElementById('btn-editar-prov-det').onclick = () => {
+      cerrarModalProvDetalle();
+      abrirModalProveedor(id);
+    };
+    document.getElementById('modal-prov-detalle').classList.add('open');
+  } catch(e) { toast('Error cargando proveedor', 'error'); }
+}
+
+function cerrarModalProvDetalle() { document.getElementById('modal-prov-detalle').classList.remove('open'); }
+
+async function proveedorDesdeDocumento(docId) {
+  try {
+    const r = await fetch(`${API}/proveedores/desde-documento/${docId}`, {
+      method: 'POST', headers: authHeaders()
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Error', 'error'); return; }
+    toast(`✅ Proveedor añadido al catálogo. ${d.documentos_asociados} doc(s) asociados`, 'success');
+    cerrarModal();
+    cargarDocumentos();
+    cargarProveedores();
+    cargarProveedoresReportes();
+  } catch(e) { toast('Error al añadir proveedor', 'error'); }
+}
+
+async function cargarProveedoresReportes() {
+  try {
+    const r = await fetch(`${API}/proveedores?por_pagina=500`, { headers: authHeaders() });
+    const d = await r.json();
+    const provs = d.proveedores || [];
+    ['rep-cont-prov', 'rep-anal-prov'].forEach(selId => {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const val = sel.value;
+      sel.innerHTML = '<option value="">Todos los proveedores</option>' +
+        provs.map(p => `<option value="${p.id}">${p.nombre}${p.cif?' ('+p.cif+')':''}</option>`).join('');
+      sel.value = val;
+    });
+  } catch(e) {}
+}
+
+async function generarReporteContable() {
+  const btn = document.getElementById('btn-contable');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generando...';
+  try {
+    const body   = {};
+    const desde  = document.getElementById('rep-cont-desde').value;
+    const hasta  = document.getElementById('rep-cont-hasta').value;
+    const provId = document.getElementById('rep-cont-prov').value;
+    if (desde)  body.fecha_desde  = desde;
+    if (hasta)  body.fecha_hasta  = hasta;
+    if (provId) body.proveedor_id = parseInt(provId);
+    const r = await fetch(`${API}/reportes/contable`, {
+      method:'POST',
+      headers: authHeaders({ 'Content-Type':'application/json' }),
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error generando reporte'); }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `informe_contable_${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click();
+    toast('✅ Informe contable descargado', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='📥 Descargar Informe Contable'; }
+}
+
+async function generarReporteAnalitico() {
+  const btn = document.getElementById('btn-analitico');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generando...';
+  try {
+    const body   = {};
+    const desde  = document.getElementById('rep-anal-desde').value;
+    const hasta  = document.getElementById('rep-anal-hasta').value;
+    const provId = document.getElementById('rep-anal-prov').value;
+    if (desde)  body.fecha_desde  = desde;
+    if (hasta)  body.fecha_hasta  = hasta;
+    if (provId) body.proveedor_id = parseInt(provId);
+    const r = await fetch(`${API}/reportes/analitico`, {
+      method:'POST',
+      headers: authHeaders({ 'Content-Type':'application/json' }),
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Error generando análisis'); }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `analisis_compras_${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click();
+    toast('✅ Análisis descargado', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled=false; btn.innerHTML='📥 Descargar Análisis de Compras'; }
 }
 
 /* ──────────────────────────────────────

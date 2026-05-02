@@ -334,3 +334,288 @@ def generar_reporte_excel(documentos, ruta_salida, fecha_desde=None, fecha_hasta
     os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
     wb.save(ruta_salida)
     return ruta_salida, None
+
+
+def generar_reporte_contable(docs, ruta_salida, nombre_proveedor='Todos los proveedores'):
+    """Excel contable de facturas: hoja Resumen por proveedor + hoja Detalle."""
+    if not EXCEL_DISPONIBLE:
+        return None, "openpyxl no está instalado"
+
+    from collections import defaultdict
+
+    wb = openpyxl.Workbook()
+
+    # ─── HOJA 1: RESUMEN ────────────────────────────────────────────────────
+    ws = wb.active
+    ws.title = "Resumen"
+    ws.sheet_view.showGridLines = False
+
+    ws.merge_cells('A1:E1')
+    t = ws['A1']
+    t.value = "INFORME CONTABLE DE FACTURAS"
+    t.font = Font(bold=True, color=COLOR_AZUL_OSCURO, name='Calibri', size=16)
+    t.alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 28
+
+    ws.merge_cells('A2:E2')
+    ws['A2'].value = f"Proveedor: {nombre_proveedor}"
+    ws['A2'].font = Font(name='Calibri', size=11, color=COLOR_AZUL_OSCURO)
+    ws['A2'].alignment = Alignment(horizontal='left', vertical='center')
+
+    ws.merge_cells('A3:E3')
+    ws['A3'].value = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws['A3'].font = Font(name='Calibri', size=10, color=COLOR_AZUL_OSCURO, italic=True)
+    ws['A3'].alignment = Alignment(horizontal='left', vertical='center')
+
+    for col, cab in enumerate(['Proveedor', 'Nº Facturas', 'Base Imponible', 'IVA (€)', 'Total'], 1):
+        _celda_cabecera(ws, 5, col, cab)
+    ws.row_dimensions[5].height = 22
+
+    grupos = defaultdict(lambda: {'count': 0, 'base': 0.0, 'iva': 0.0, 'total': 0.0})
+    for doc in docs:
+        k = doc.get('proveedor') or 'Sin proveedor'
+        grupos[k]['count'] += 1
+        grupos[k]['base']  += doc.get('base_imponible') or 0
+        grupos[k]['iva']   += doc.get('iva') or 0
+        grupos[k]['total'] += doc.get('total') or 0
+
+    fila = 6
+    for i, (prov, vals) in enumerate(sorted(grupos.items())):
+        color = COLOR_BLANCO if i % 2 == 0 else 'F5F5F5'
+        _celda_dato(ws, fila, 1, prov, color_fondo=color)
+        _celda_dato(ws, fila, 2, vals['count'], color_fondo=color, alineacion='center')
+        _celda_dato(ws, fila, 3, vals['base'],  formato='€ #,##0.00', color_fondo=color, alineacion='right')
+        _celda_dato(ws, fila, 4, vals['iva'],   formato='€ #,##0.00', color_fondo=color, alineacion='right')
+        _celda_dato(ws, fila, 5, vals['total'], formato='€ #,##0.00', color_fondo=color, alineacion='right')
+        fila += 1
+
+    _celda_dato(ws, fila, 1, 'TOTALES', negrita=True, color_fondo=COLOR_DORADO, alineacion='center')
+    _celda_dato(ws, fila, 2, sum(v['count'] for v in grupos.values()), negrita=True, color_fondo=COLOR_DORADO, alineacion='center')
+    _celda_dato(ws, fila, 3, sum(v['base']  for v in grupos.values()), formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+    _celda_dato(ws, fila, 4, sum(v['iva']   for v in grupos.values()), formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+    _celda_dato(ws, fila, 5, sum(v['total'] for v in grupos.values()), formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+
+    ws.column_dimensions['A'].width = 40
+    ws.column_dimensions['B'].width = 12
+    for col_ltr in ['C', 'D', 'E']:
+        ws.column_dimensions[col_ltr].width = 18
+
+    # ─── HOJA 2: DETALLE FACTURAS ────────────────────────────────────────────
+    ws2 = wb.create_sheet("Detalle Facturas")
+    ws2.sheet_view.showGridLines = False
+
+    cabs2 = ['Nº Factura', 'Fecha', 'Proveedor', 'CIF',
+             'Base Imponible', 'IVA %', 'IVA €', 'Total', 'Neteo']
+    for col, cab in enumerate(cabs2, 1):
+        _celda_cabecera(ws2, 1, col, cab)
+    ws2.row_dimensions[1].height = 22
+
+    docs_sorted = sorted(docs, key=lambda d: (d.get('proveedor') or '', d.get('fecha') or ''))
+    for i, doc in enumerate(docs_sorted, 2):
+        color = COLOR_BLANCO if i % 2 == 0 else COLOR_GRIS_CLARO
+        _celda_dato(ws2, i, 1, doc.get('numero') or '—', color_fondo=color)
+        _celda_dato(ws2, i, 2, doc.get('fecha') or '—', color_fondo=color)
+        _celda_dato(ws2, i, 3, doc.get('proveedor') or '—', color_fondo=color)
+        _celda_dato(ws2, i, 4, doc.get('cif') or '—', color_fondo=color)
+        _celda_dato(ws2, i, 5, doc.get('base_imponible') or 0, formato='€ #,##0.00', color_fondo=color, alineacion='right')
+        pct = (doc.get('porcentaje_iva') or 0) / 100
+        _celda_dato(ws2, i, 6, pct, formato='0.0%', color_fondo=color, alineacion='center')
+        _celda_dato(ws2, i, 7, doc.get('iva') or 0, formato='€ #,##0.00', color_fondo=color, alineacion='right')
+        _celda_dato(ws2, i, 8, doc.get('total') or 0, formato='€ #,##0.00', color_fondo=color, negrita=True, alineacion='right')
+        neteo_val = '✓ Con albarán' if doc.get('estado') == 'FACTURA_ASOCIADA' else '✗ Sin albarán'
+        cn = _celda_dato(ws2, i, 9, neteo_val, color_fondo=color, alineacion='center')
+        cn.font = Font(name='Calibri', size=10, bold=True,
+                       color=COLOR_VERDE if doc.get('estado') == 'FACTURA_ASOCIADA' else COLOR_ROJO)
+
+    ultima = len(docs_sorted) + 2
+    for c in range(1, 10):
+        ws2.cell(row=ultima, column=c).fill = PatternFill("solid", fgColor=COLOR_DORADO)
+        ws2.cell(row=ultima, column=c).border = _borde_fino()
+    _celda_dato(ws2, ultima, 1, 'TOTALES', negrita=True, color_fondo=COLOR_DORADO)
+    _celda_dato(ws2, ultima, 5, sum(d.get('base_imponible') or 0 for d in docs_sorted),
+                formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+    _celda_dato(ws2, ultima, 7, sum(d.get('iva') or 0 for d in docs_sorted),
+                formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+    _celda_dato(ws2, ultima, 8, sum(d.get('total') or 0 for d in docs_sorted),
+                formato='€ #,##0.00', negrita=True, color_fondo=COLOR_DORADO, alineacion='right')
+
+    for i, ancho in enumerate([18, 12, 35, 14, 16, 8, 14, 16, 16], 1):
+        ws2.column_dimensions[get_column_letter(i)].width = ancho
+
+    os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
+    wb.save(ruta_salida)
+    return ruta_salida, None
+
+
+def generar_reporte_analitico(docs_con_lineas, ruta_salida, nombre_proveedor='Todos los proveedores'):
+    """Excel analítico: Portada + Detalle por línea + Coste Promedio Ponderado."""
+    if not EXCEL_DISPONIBLE:
+        return None, "openpyxl no está instalado"
+
+    import re
+    from collections import defaultdict, Counter
+
+    def _norm(s):
+        return re.sub(r'\s+', ' ', (s or '').lower().strip())
+
+    wb = openpyxl.Workbook()
+
+    # ─── HOJA 1: PORTADA ─────────────────────────────────────────────────────
+    ws_p = wb.active
+    ws_p.title = "Portada"
+    ws_p.sheet_view.showGridLines = False
+
+    ws_p.merge_cells('B2:H3')
+    t = ws_p['B2']
+    t.value = "ANÁLISIS DE COMPRAS POR PRODUCTO"
+    t.font = Font(bold=True, color=COLOR_AZUL_OSCURO, name='Calibri', size=20)
+    t.alignment = Alignment(horizontal='center', vertical='center')
+    ws_p.row_dimensions[2].height = 30
+    ws_p.row_dimensions[3].height = 30
+
+    ws_p.merge_cells('B4:H4')
+    ws_p['B4'].value = "Coste Promedio Ponderado"
+    ws_p['B4'].font = Font(name='Calibri', size=12, color=COLOR_DORADO)
+    ws_p['B4'].alignment = Alignment(horizontal='center', vertical='center')
+
+    ws_p.merge_cells('B5:H5')
+    ws_p['B5'].value = f"Proveedor: {nombre_proveedor}"
+    ws_p['B5'].font = Font(name='Calibri', size=11, color=COLOR_AZUL_OSCURO)
+    ws_p['B5'].alignment = Alignment(horizontal='center', vertical='center')
+
+    ws_p.merge_cells('B6:H6')
+    ws_p['B6'].value = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws_p['B6'].font = Font(name='Calibri', size=10, color=COLOR_AZUL_OSCURO, italic=True)
+    ws_p['B6'].alignment = Alignment(horizontal='center', vertical='center')
+
+    total_docs    = len(docs_con_lineas)
+    total_lineas  = sum(len(d.get('lineas', [])) for d in docs_con_lineas)
+    importe_total = sum(d.get('total') or 0 for d in docs_con_lineas)
+    num_provs     = len(set(d.get('proveedor') or '' for d in docs_con_lineas))
+
+    kpis_p = [
+        ('Total Documentos', total_docs, None),
+        ('Total Líneas', total_lineas, None),
+        ('Importe Total', importe_total, '#,##0.00 €'),
+        ('Nº Proveedores', num_provs, None),
+    ]
+    kpi_cols_p = [2, 4, 6, 8]
+    for i, (label, valor, fmt_num) in enumerate(kpis_p):
+        col = kpi_cols_p[i]
+        lbl = ws_p.cell(row=8, column=col, value=label)
+        lbl.font = Font(bold=True, color=COLOR_BLANCO, name='Calibri', size=10)
+        lbl.fill = PatternFill("solid", fgColor=COLOR_AZUL_OSCURO)
+        lbl.alignment = Alignment(horizontal='center', vertical='center')
+        lbl.border = _borde_medio()
+        val = ws_p.cell(row=9, column=col, value=valor)
+        val.font = Font(bold=True, color=COLOR_AZUL_OSCURO, name='Calibri', size=16)
+        val.fill = PatternFill("solid", fgColor=COLOR_GRIS_CLARO)
+        val.alignment = Alignment(horizontal='center', vertical='center')
+        val.border = _borde_medio()
+        if fmt_num:
+            val.number_format = fmt_num
+
+    ws_p.row_dimensions[8].height = 20
+    ws_p.row_dimensions[9].height = 30
+    for col in range(1, 10):
+        ws_p.column_dimensions[get_column_letter(col)].width = 18
+
+    # ─── HOJA 2: DETALLE POR DOCUMENTO ───────────────────────────────────────
+    ws_d = wb.create_sheet("Detalle por Documento")
+    ws_d.sheet_view.showGridLines = False
+
+    cabs_d = ['Proveedor', 'Nº Documento', 'Fecha', 'Descripción Producto',
+              'Cantidad', 'Unidad', 'Precio Unitario', 'Importe Línea']
+    for col, cab in enumerate(cabs_d, 1):
+        _celda_cabecera(ws_d, 1, col, cab)
+    ws_d.row_dimensions[1].height = 22
+
+    docs_sorted_d = sorted(docs_con_lineas, key=lambda d: (
+        d.get('proveedor') or '', d.get('fecha') or ''
+    ))
+
+    fila_d = 2
+    for doc_idx, doc in enumerate(docs_sorted_d):
+        lineas = doc.get('lineas', [])
+        if not lineas:
+            continue
+        color = COLOR_BLANCO if doc_idx % 2 == 0 else COLOR_GRIS_CLARO
+        for linea_idx, linea in enumerate(lineas):
+            prov_v  = (doc.get('proveedor') or '—') if linea_idx == 0 else ''
+            num_v   = (doc.get('numero') or f"#{doc.get('id','')}") if linea_idx == 0 else ''
+            fecha_v = (doc.get('fecha') or '—') if linea_idx == 0 else ''
+            _celda_dato(ws_d, fila_d, 1, prov_v,  color_fondo=color)
+            _celda_dato(ws_d, fila_d, 2, num_v,   color_fondo=color)
+            _celda_dato(ws_d, fila_d, 3, fecha_v, color_fondo=color)
+            _celda_dato(ws_d, fila_d, 4, linea.get('descripcion') or '', color_fondo=color)
+            _celda_dato(ws_d, fila_d, 5, linea.get('cantidad') or 0,
+                        formato='#,##0.000', color_fondo=color, alineacion='right')
+            _celda_dato(ws_d, fila_d, 6, linea.get('unidad') or '',
+                        color_fondo=color, alineacion='center')
+            _celda_dato(ws_d, fila_d, 7, linea.get('precio_unitario') or 0,
+                        formato='€ #,##0.00', color_fondo=color, alineacion='right')
+            _celda_dato(ws_d, fila_d, 8, linea.get('importe_linea') or 0,
+                        formato='€ #,##0.00', color_fondo=color, alineacion='right')
+            fila_d += 1
+
+    for i, ancho in enumerate([30, 18, 12, 40, 14, 10, 16, 16], 1):
+        ws_d.column_dimensions[get_column_letter(i)].width = ancho
+
+    # ─── HOJA 3: COSTE PROMEDIO PONDERADO ────────────────────────────────────
+    ws_cpp = wb.create_sheet("Coste Promedio Ponderado")
+    ws_cpp.sheet_view.showGridLines = False
+
+    cabs_cpp = ['Producto', 'Total Unidades', 'Importe Total', 'CPP (€/ud)', 'Nº Compras', 'Proveedores']
+    for col, cab in enumerate(cabs_cpp, 1):
+        _celda_cabecera(ws_cpp, 1, col, cab)
+    ws_cpp.row_dimensions[1].height = 22
+
+    grupos_cpp = defaultdict(lambda: {
+        'descripciones': [], 'cantidad': 0.0,
+        'importe': 0.0, 'count': 0, 'proveedores': set()
+    })
+    for doc in docs_con_lineas:
+        prov = doc.get('proveedor') or ''
+        for linea in doc.get('lineas', []):
+            key = _norm(linea.get('descripcion', ''))
+            if not key:
+                continue
+            g = grupos_cpp[key]
+            g['descripciones'].append(linea.get('descripcion', ''))
+            g['cantidad'] += linea.get('cantidad') or 0
+            g['importe']  += linea.get('importe_linea') or 0
+            g['count']    += 1
+            if prov:
+                g['proveedores'].add(prov)
+
+    rows_cpp = []
+    for key, g in grupos_cpp.items():
+        most_freq = Counter(g['descripciones']).most_common(1)[0][0]
+        cant = g['cantidad']
+        imp  = g['importe']
+        rows_cpp.append({
+            'producto': most_freq,
+            'cantidad': cant,
+            'importe': imp,
+            'cpp': imp / cant if cant > 0 else 0,
+            'count': g['count'],
+            'proveedores': ', '.join(sorted(g['proveedores'])),
+        })
+    rows_cpp.sort(key=lambda x: x['importe'], reverse=True)
+
+    for i, row in enumerate(rows_cpp, 2):
+        is_top10 = (i - 2) < 10
+        color = 'FFF9C4' if is_top10 else (COLOR_BLANCO if i % 2 == 0 else COLOR_GRIS_CLARO)
+        _celda_dato(ws_cpp, i, 1, row['producto'],   color_fondo=color)
+        _celda_dato(ws_cpp, i, 2, row['cantidad'],   formato='#,##0.000',    color_fondo=color, alineacion='right')
+        _celda_dato(ws_cpp, i, 3, row['importe'],    formato='€ #,##0.00',   color_fondo=color, alineacion='right')
+        _celda_dato(ws_cpp, i, 4, row['cpp'],        formato='€ #,##0.0000', color_fondo=color, alineacion='right')
+        _celda_dato(ws_cpp, i, 5, row['count'],      color_fondo=color, alineacion='center')
+        _celda_dato(ws_cpp, i, 6, row['proveedores'], color_fondo=color)
+
+    for i, ancho in enumerate([45, 16, 16, 16, 12, 40], 1):
+        ws_cpp.column_dimensions[get_column_letter(i)].width = ancho
+
+    os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
+    wb.save(ruta_salida)
+    return ruta_salida, None

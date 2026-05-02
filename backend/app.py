@@ -25,9 +25,9 @@ except ImportError:
 from flask import Flask, request, jsonify, send_file, send_from_directory, g
 import requests as http_requests
 from flask_cors import CORS
-from models import db, Documento
+from models import db, Documento, Proveedor, LineaDocumento
 from ocr_processor import procesar_documento
-from report_generator import generar_reporte_excel
+from report_generator import generar_reporte_excel, generar_reporte_contable, generar_reporte_analitico
 
 try:
     import jwt as pyjwt
@@ -160,8 +160,50 @@ def escanear_documento():
 
     db.session.commit()
 
+    # Guardar líneas de detalle
+    lineas_data = resultado.get('lineas', [])
+    for linea_data in lineas_data:
+        linea = LineaDocumento(
+            documento_id=doc.id,
+            descripcion=linea_data.get('descripcion', ''),
+            cantidad=float(linea_data.get('cantidad', 1.0)),
+            unidad=linea_data.get('unidad'),
+            precio_unitario=float(linea_data.get('precio_unitario', 0.0)),
+            importe_linea=float(linea_data.get('importe_linea', 0.0)),
+            orden=linea_data.get('orden', 0),
+        )
+        db.session.add(linea)
+
+    # Normalizar proveedor
+    cif_extraido = resultado.get('cif')
+    nombre_extraido = resultado.get('proveedor') or ''
+    proveedor_match = None
+
+    if cif_extraido:
+        proveedor_match = Proveedor.query.filter_by(cif=cif_extraido, activo=True).first()
+
+    if not proveedor_match and nombre_extraido:
+        import difflib
+        todos = Proveedor.query.filter_by(activo=True).all()
+        if todos:
+            nombres_map = {p.nombre: p for p in todos}
+            matches = difflib.get_close_matches(
+                nombre_extraido, nombres_map.keys(), n=1, cutoff=0.75
+            )
+            if matches:
+                proveedor_match = nombres_map[matches[0]]
+
+    if proveedor_match:
+        doc.proveedor_id = proveedor_match.id
+        doc.proveedor_normalizado = True
+        doc.proveedor = proveedor_match.nombre
+
+    db.session.commit()
+
     response = doc.to_dict()
     response['albaranes_neteados_automaticamente'] = len(albaranes_neteados)
+    response['lineas_extraidas'] = len(lineas_data)
+    response['proveedor_normalizado'] = doc.proveedor_normalizado
     return jsonify(response), 201
 
 
@@ -399,6 +441,150 @@ def documentos_sin_asociar():
 
 
 # ═══════════════════════════════════════════════════════════
+# ENDPOINTS DE PROVEEDORES
+# ═══════════════════════════════════════════════════════════
+
+@app.route('/api/proveedores', methods=['GET'])
+@require_auth
+def listar_proveedores():
+    q        = request.args.get('q', '').strip()
+    activo   = request.args.get('activo')
+    pagina   = int(request.args.get('pagina', 1))
+    por_pagina = int(request.args.get('por_pagina', 50))
+
+    query = Proveedor.query
+    if q:
+        busq = f'%{q}%'
+        query = query.filter(
+            db.or_(Proveedor.nombre.ilike(busq), Proveedor.cif.ilike(busq))
+        )
+    if activo is not None:
+        query = query.filter(Proveedor.activo == (activo.lower() == 'true'))
+
+    total = query.count()
+    proveedores = query.order_by(Proveedor.nombre) \
+                       .offset((pagina - 1) * por_pagina) \
+                       .limit(por_pagina).all()
+
+    return jsonify({
+        'proveedores': [p.to_dict() for p in proveedores],
+        'total': total,
+        'pagina': pagina,
+        'paginas': (total + por_pagina - 1) // por_pagina,
+    })
+
+
+@app.route('/api/proveedores', methods=['POST'])
+@require_auth
+def crear_proveedor():
+    datos = request.get_json() or {}
+    nombre = datos.get('nombre', '').strip()
+    if not nombre:
+        return jsonify({'error': 'El campo nombre es obligatorio'}), 400
+
+    cif = datos.get('cif', '').strip() or None
+    if cif and Proveedor.query.filter_by(cif=cif).first():
+        return jsonify({'error': 'Ya existe un proveedor con ese CIF'}), 409
+
+    prov = Proveedor(
+        nombre=nombre,
+        cif=cif,
+        email=datos.get('email', '').strip() or None,
+        telefono=datos.get('telefono', '').strip() or None,
+        direccion=datos.get('direccion', '').strip() or None,
+        notas=datos.get('notas', '').strip() or None,
+    )
+    db.session.add(prov)
+    db.session.commit()
+    return jsonify(prov.to_dict()), 201
+
+
+@app.route('/api/proveedores/<int:prov_id>', methods=['GET'])
+@require_auth
+def obtener_proveedor(prov_id):
+    prov = Proveedor.query.get_or_404(prov_id)
+    data = prov.to_dict()
+    ultimos = prov.documentos.order_by(Documento.fecha_subida.desc()).limit(20).all()
+    data['ultimos_documentos'] = [d.to_dict_simple() for d in ultimos]
+    return jsonify(data)
+
+
+@app.route('/api/proveedores/<int:prov_id>', methods=['PUT'])
+@require_auth
+def actualizar_proveedor(prov_id):
+    prov = Proveedor.query.get_or_404(prov_id)
+    datos = request.get_json() or {}
+
+    if 'cif' in datos:
+        cif_nuevo = datos['cif'].strip() or None
+        if cif_nuevo and cif_nuevo != prov.cif:
+            if Proveedor.query.filter(Proveedor.cif == cif_nuevo, Proveedor.id != prov_id).first():
+                return jsonify({'error': 'Ya existe un proveedor con ese CIF'}), 409
+        prov.cif = cif_nuevo
+
+    for campo in ['nombre', 'email', 'telefono', 'direccion', 'notas', 'activo']:
+        if campo in datos:
+            setattr(prov, campo, datos[campo])
+
+    db.session.commit()
+    return jsonify(prov.to_dict())
+
+
+@app.route('/api/proveedores/<int:prov_id>', methods=['DELETE'])
+@require_auth
+def eliminar_proveedor(prov_id):
+    prov = Proveedor.query.get_or_404(prov_id)
+    n = prov.documentos.count()
+    if n > 0:
+        return jsonify({
+            'error': f'No se puede eliminar: tiene {n} documento(s) asociado(s). Desvincula los documentos primero.'
+        }), 409
+    db.session.delete(prov)
+    db.session.commit()
+    return jsonify({'mensaje': 'Proveedor eliminado'})
+
+
+@app.route('/api/proveedores/desde-documento/<int:doc_id>', methods=['POST'])
+@require_auth
+def proveedor_desde_documento(doc_id):
+    import difflib
+    doc = Documento.query.get_or_404(doc_id)
+
+    if doc.proveedor_id:
+        return jsonify({'error': 'El documento ya tiene proveedor asignado'}), 409
+
+    cif = (doc.cif or '').strip() or None
+
+    # Reusar proveedor existente con mismo CIF, o crear uno nuevo
+    prov = None
+    if cif:
+        prov = Proveedor.query.filter_by(cif=cif).first()
+    if not prov:
+        prov = Proveedor(nombre=doc.proveedor or 'Sin nombre', cif=cif)
+        db.session.add(prov)
+        db.session.flush()
+
+    # Asociar todos los documentos coincidentes
+    todos = Documento.query.filter(Documento.proveedor_id.is_(None)).all()
+    asociados = 0
+    for d in todos:
+        coincide = False
+        if cif and d.cif and d.cif.strip() == cif:
+            coincide = True
+        elif doc.proveedor and d.proveedor:
+            ratio = difflib.SequenceMatcher(None, doc.proveedor.lower(), d.proveedor.lower()).ratio()
+            if ratio >= 0.80:
+                coincide = True
+        if coincide:
+            d.proveedor_id = prov.id
+            d.proveedor_normalizado = True
+            asociados += 1
+
+    db.session.commit()
+    return jsonify({'proveedor': prov.to_dict(), 'documentos_asociados': asociados})
+
+
+# ═══════════════════════════════════════════════════════════
 # ESTADÍSTICAS Y REPORTES
 # ═══════════════════════════════════════════════════════════
 
@@ -456,6 +642,90 @@ def generar_reporte():
 
     ruta, error = generar_reporte_excel(docs_dict, ruta_salida, fecha_desde, fecha_hasta)
 
+    if error:
+        return jsonify({'error': error}), 500
+
+    return send_file(
+        ruta,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=nombre
+    )
+
+
+@app.route('/api/reportes/contable', methods=['POST'])
+@require_auth
+def generar_reporte_contable_endpoint():
+    datos        = request.get_json() or {}
+    fecha_desde  = datos.get('fecha_desde')
+    fecha_hasta  = datos.get('fecha_hasta')
+    proveedor_id = datos.get('proveedor_id')
+
+    query = Documento.query.filter_by(tipo='factura')
+    if fecha_desde:
+        query = query.filter(Documento.fecha >= fecha_desde)
+    if fecha_hasta:
+        query = query.filter(Documento.fecha <= fecha_hasta)
+    if proveedor_id:
+        query = query.filter(Documento.proveedor_id == proveedor_id)
+
+    docs = query.order_by(Documento.fecha).all()
+    if not docs:
+        return jsonify({'error': 'No hay facturas para los filtros seleccionados'}), 404
+
+    nombre_proveedor = 'Todos los proveedores'
+    if proveedor_id:
+        p = Proveedor.query.get(proveedor_id)
+        if p:
+            nombre_proveedor = p.nombre
+
+    docs_dict = [d.to_dict() for d in docs]
+    nombre = f"contable_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    ruta = str(REPORTS_FOLDER / nombre)
+
+    ruta, error = generar_reporte_contable(docs_dict, ruta, nombre_proveedor)
+    if error:
+        return jsonify({'error': error}), 500
+
+    return send_file(
+        ruta,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=nombre
+    )
+
+
+@app.route('/api/reportes/analitico', methods=['POST'])
+@require_auth
+def generar_reporte_analitico_endpoint():
+    datos        = request.get_json() or {}
+    fecha_desde  = datos.get('fecha_desde')
+    fecha_hasta  = datos.get('fecha_hasta')
+    proveedor_id = datos.get('proveedor_id')
+
+    query = Documento.query.filter(Documento.lineas.any())
+    if fecha_desde:
+        query = query.filter(Documento.fecha >= fecha_desde)
+    if fecha_hasta:
+        query = query.filter(Documento.fecha <= fecha_hasta)
+    if proveedor_id:
+        query = query.filter(Documento.proveedor_id == proveedor_id)
+
+    docs = query.order_by(Documento.fecha).all()
+    if not docs:
+        return jsonify({'error': 'No hay documentos con líneas de detalle para los filtros seleccionados'}), 404
+
+    nombre_proveedor = 'Todos los proveedores'
+    if proveedor_id:
+        p = Proveedor.query.get(proveedor_id)
+        if p:
+            nombre_proveedor = p.nombre
+
+    docs_dict = [d.to_dict() for d in docs]
+    nombre = f"analitico_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    ruta = str(REPORTS_FOLDER / nombre)
+
+    ruta, error = generar_reporte_analitico(docs_dict, ruta, nombre_proveedor)
     if error:
         return jsonify({'error': error}), 500
 
