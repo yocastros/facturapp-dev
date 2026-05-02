@@ -454,6 +454,9 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     <div class="nav-item" data-module="reportes" onclick="showPage('reportes')">
       <span class="icon">📥</span><span>Reportes Excel</span>
     </div>
+    <div class="nav-item" id="nav-admin-usuarios" style="display:none" onclick="window.location.href='http://localhost:8000/users'">
+      <span class="icon">👥</span><span>Gestionar Usuarios</span>
+    </div>
   </nav>
 
   <!-- Selector de tema -->
@@ -479,7 +482,11 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
   </div>
 
   <div class="sidebar-footer">
-    <span id="sidebar-usuario" class="sidebar-usuario"></span>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 4px;">
+      <span id="sidebar-usuario" class="sidebar-usuario" style="font-size:12px;opacity:.7;"></span>
+      <span id="btn-admin-usuarios" style="display:none;cursor:pointer;font-size:16px;opacity:.7;"
+            title="Gestionar usuarios" onclick="window.location.href='http://localhost:8000/users'">⚙️</span>
+    </div>
     <div class="nav-item nav-item-logout" onclick="cerrarSesion()">
       <span class="icon">🚪</span><span>Cerrar sesión</span>
     </div>
@@ -1004,6 +1011,12 @@ async function initAuth() {
       const u = await me.json();
       const el = document.getElementById('sidebar-usuario');
       if (el) el.textContent = u.full_name || u.username;
+      if (u.role === 'admin') {
+        const navAdmin = document.getElementById('nav-admin-usuarios');
+        if (navAdmin) navAdmin.style.display = '';
+        const btnAdmin = document.getElementById('btn-admin-usuarios');
+        if (btnAdmin) btnAdmin.style.display = '';
+      }
     }
   } catch(e) { console.warn('Sistema de usuarios no disponible, modo local activo'); }
   return true;

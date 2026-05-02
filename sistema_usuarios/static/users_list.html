@@ -3,216 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionar Usuarios - Sistema HORECA</title>
+    <title>Gestionar Usuarios — Gestión Facturas y Albaranes</title>
     <link rel="stylesheet" href="/static/sistema_usuarios_shared.css">
 </head>
 <body>
-    <nav class="navbar">
-      <div class="navbar-brand">
-        <h1>Gestión Facturas</h1>
-        <span>& Albaranes</span>
-      </div>
-      <div class="navbar-links">
-        <a href="/dashboard">Dashboard</a>
-        <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
-        <a href="/profile">Mi perfil</a>
-        <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
-      </div>
-    </nav>
 
-    <div class="container">
-        <div id="alert-success" class="alert alert-success"></div>
-        <div id="alert-error" class="alert alert-error"></div>
-        <div id="alert-warning" class="alert alert-warning"></div>
+<nav class="navbar">
+  <div class="navbar-brand">
+    <h1>Gestión Facturas</h1>
+    <span>& Albaranes</span>
+  </div>
+  <div class="navbar-links">
+    <a href="/dashboard">Dashboard</a>
+    <button id="nav-users" class="hidden" onclick="window.location.href='/users'">Usuarios</button>
+    <a href="/profile">Mi perfil</a>
+    <button onclick="localStorage.removeItem('token'); window.location.href='/login'">Salir</button>
+  </div>
+</nav>
 
-        <div id="access-denied" class="access-denied" style="display: none;">
-            <h2>⛔ Acceso Denegado</h2>
-            <p>No tienes permiso para acceder a esta página.</p>
-            <button onclick="window.location.href='/dashboard'" class="btn" style="margin-top: 20px;">Volver al Dashboard</button>
+<div class="page-wrapper">
+
+    <div id="alert-success" class="alert alert-success"></div>
+    <div id="alert-error"   class="alert alert-error"></div>
+    <div id="alert-warning" class="alert alert-info"></div>
+
+    <!-- Acceso denegado -->
+    <div id="access-denied" style="display:none; text-align:center; padding:60px 24px;">
+        <div style="font-size:48px; margin-bottom:16px;">⛔</div>
+        <h2 style="font-family:'Playfair Display',serif; color:var(--azul); margin-bottom:8px;">Acceso Denegado</h2>
+        <p style="color:var(--gris-m); margin-bottom:24px;">No tienes permiso para acceder a esta página.</p>
+        <button onclick="window.location.href='/dashboard'" class="btn btn-primary">Volver al Dashboard</button>
+    </div>
+
+    <!-- Contenido principal -->
+    <div id="content">
+        <div class="page-header">
+            <div>
+                <h2>Gestión de Usuarios</h2>
+                <p>Administra los accesos al sistema</p>
+            </div>
+            <button onclick="window.location.href='/create-user'" class="btn btn-primary">+ Nuevo Usuario</button>
         </div>
 
-        <div id="content">
-            <div class="header-actions">
-                <h2>👥 Gestión de Usuarios</h2>
-                <button onclick="window.location.href='/create-user'" class="btn btn-success">➕ Nuevo Usuario</button>
+        <!-- Banner de ayuda -->
+        <div class="help-banner" id="help-usuarios" style="display:flex; align-items:flex-start; gap:12px; background:var(--info-bg); border:1px solid #BBDEFB; border-radius:10px; padding:12px 16px; margin-bottom:22px;">
+            <span style="font-size:18px; flex-shrink:0;">ℹ️</span>
+            <div style="flex:1; font-size:13px; color:var(--info-color); line-height:1.6;">
+                <strong>Módulo de usuarios.</strong>
+                Gestiona quién tiene acceso al sistema. Los roles disponibles son:
+                <strong>Administrador</strong> (acceso total),
+                <strong>Avanzado</strong> (puede escanear, netear y generar reportes) y
+                <strong>Básico</strong> (solo lectura y escaneo).
+                Los usuarios inactivos no pueden iniciar sesión.
+            </div>
+            <button onclick="this.parentElement.style.display='none'" style="background:none; border:none; cursor:pointer; font-size:18px; color:var(--info-color); opacity:0.5; padding:0 2px; line-height:1; flex-shrink:0;">×</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Usuarios del sistema</span>
+                <span id="user-count" style="font-size:12px; color:var(--gris-m);"></span>
             </div>
 
-            <div class="card">
-                <div id="loading" class="loading">Cargando usuarios...</div>
-                <div id="users-table-container" style="display: none;">
+            <div id="loading" style="padding:40px; text-align:center; color:var(--gris-m);">
+                <div class="spinner"></div>
+                <div style="margin-top:12px; font-size:13px;">Cargando usuarios...</div>
+            </div>
+
+            <div id="users-table-container" style="display:none;">
+                <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
                                 <th>Usuario</th>
+                                <th>Nombre completo</th>
                                 <th>Email</th>
-                                <th>Nombre Completo</th>
                                 <th>Rol</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="users-table-body">
-                        </tbody>
+                        <tbody id="users-table-body"></tbody>
                     </table>
                 </div>
-                <div id="empty-state" class="empty-state" style="display: none;">
-                    <h3>No hay usuarios</h3>
-                    <p>Aún no se han creado usuarios en el sistema.</p>
-                </div>
+            </div>
+
+            <div id="empty-state" style="display:none; text-align:center; padding:44px 24px; color:var(--gris-m);">
+                <div style="font-size:42px; margin-bottom:12px; opacity:.5;">👥</div>
+                <div style="font-size:14px;">No hay usuarios en el sistema</div>
+            </div>
+        </div>
+
+        <!-- Tabla de permisos por rol -->
+        <div class="card" style="margin-top:20px;">
+            <div class="card-header">
+                <span class="card-title">Permisos por rol</span>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Permiso</th>
+                            <th>Administrador</th>
+                            <th>Avanzado</th>
+                            <th>Básico</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Ver documentos</td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td>Escanear documentos</td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                        </tr>
+                        <tr>
+                            <td>Netear / asociar</td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--rojo-bg);color:var(--rojo)">✗ No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Generar reportes</td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--rojo-bg);color:var(--rojo)">✗ No</span></td>
+                        </tr>
+                        <tr>
+                            <td>Gestionar usuarios</td>
+                            <td><span class="badge" style="background:var(--verde-bg);color:var(--verde)">✓ Sí</span></td>
+                            <td><span class="badge" style="background:var(--rojo-bg);color:var(--rojo)">✗ No</span></td>
+                            <td><span class="badge" style="background:var(--rojo-bg);color:var(--rojo)">✗ No</span></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        const token = localStorage.getItem('token');
+<div class="toast-container" id="toasts"></div>
 
-        if (!token) {
-            window.location.href = '/login';
-        }
+<script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
 
-        let currentUserId = null;
-        let userRole = null;
+    let currentUserId = null;
+    let userRole = null;
 
-        async function checkRole() {
-            try {
-                const response = await fetch('/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+    function toast(msg, tipo = 'info') {
+        const c = document.getElementById('toasts');
+        const t = document.createElement('div');
+        t.className = `toast toast-${tipo}`;
+        t.innerHTML = `<span>${tipo==='success'?'✓':tipo==='error'?'✗':'ℹ'}</span><span>${msg}</span>`;
+        c.appendChild(t);
+        setTimeout(() => { t.style.animation='fadeOut .3s ease forwards'; setTimeout(()=>t.remove(),300); }, 4000);
+    }
 
-                if (response.ok) {
-                    const user = await response.json();
-                    currentUserId = user.id;
-                    userRole = user.role;
-                    localStorage.setItem('user_id', user.id);
-                    localStorage.setItem('role', user.role);
+    function getRoleName(role) {
+        const roles = { 'admin': 'Administrador', 'advanced': 'Avanzado', 'basic': 'Básico' };
+        return roles[role] || role;
+    }
 
-                    if (user.role === 'admin') {
-                        document.getElementById('nav-users').classList.remove('hidden');
-                    }
+    function getRoleClass(role) {
+        const map = { 'admin': 'role-admin', 'advanced': 'role-advanced', 'basic': 'role-basic' };
+        return map[role] || 'role-basic';
+    }
 
-                    if (user.role !== 'admin') {
-                        document.getElementById('content').style.display = 'none';
-                        document.getElementById('access-denied').style.display = 'block';
-                        return false;
-                    }
-
-                    return true;
-                } else {
-                    localStorage.removeItem('token');
-                    window.location.href = '/login';
+    async function checkRole() {
+        try {
+            const response = await fetch('/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const user = await response.json();
+                currentUserId = user.id;
+                userRole = user.role;
+                localStorage.setItem('user_id', user.id);
+                localStorage.setItem('role', user.role);
+                if (user.role === 'admin') {
+                    document.getElementById('nav-users').classList.remove('hidden');
+                }
+                if (user.role !== 'admin') {
+                    document.getElementById('content').style.display = 'none';
+                    document.getElementById('access-denied').style.display = 'block';
                     return false;
                 }
-            } catch (error) {
-                console.error('Error:', error);
+                return true;
+            } else {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
                 return false;
             }
+        } catch (error) {
+            console.error('Error:', error);
+            return false;
         }
+    }
 
-        async function loadUsers() {
-            const loadingDiv = document.getElementById('loading');
-            const tableContainer = document.getElementById('users-table-container');
-            const emptyState = document.getElementById('empty-state');
-            const tableBody = document.getElementById('users-table-body');
+    async function loadUsers() {
+        try {
+            const response = await fetch('/api/users', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const users = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('user-count').textContent = `${users.length} usuario(s)`;
 
-            try {
-                const response = await fetch('/api/users', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const users = await response.json();
-
-                    loadingDiv.style.display = 'none';
-
-                    if (users.length === 0) {
-                        emptyState.style.display = 'block';
-                        return;
-                    }
-
-                    tableContainer.style.display = 'block';
-
-                    tableBody.innerHTML = users.map(user => {
-                        const isCurrentUser = user.id === currentUserId;
-                        return `
-                        <tr>
-                            <td>${user.id}</td>
-                            <td>${user.username}</td>
-                            <td>${user.email}</td>
-                            <td>${user.full_name || '-'}</td>
-                            <td><span class="role-badge role-${user.role}">${getRoleName(user.role)}</span></td>
-                            <td class="${user.is_active ? 'status-active' : 'status-inactive'}">
-                                ${user.is_active ? '✅ Activo' : '❌ Inactivo'}
-                            </td>
-                            <td class="actions">
-                                <button class="btn btn-warning" onclick="editUser(${user.id})">✏️ Editar</button>
-                                <button class="btn btn-danger" onclick="deleteUser(${user.id}, '${user.username}', ${isCurrentUser})">🗑️ Eliminar</button>
-                            </td>
-                        </tr>
-                    `}).join('');
-                } else if (response.status === 403) {
-                    loadingDiv.textContent = 'No tienes permiso para ver esta información';
-                } else {
-                    loadingDiv.textContent = 'Error al cargar usuarios';
+                if (users.length === 0) {
+                    document.getElementById('empty-state').style.display = 'block';
+                    return;
                 }
-            } catch (error) {
-                loadingDiv.textContent = 'Error de conexión';
+
+                document.getElementById('users-table-container').style.display = 'block';
+                document.getElementById('users-table-body').innerHTML = users.map(user => {
+                    const isCurrentUser = user.id === currentUserId;
+                    return `
+                    <tr>
+                        <td><strong>${user.username}</strong>${isCurrentUser ? ' <span style="font-size:10px;color:var(--dorado);font-weight:600">(tú)</span>' : ''}</td>
+                        <td>${user.full_name || '—'}</td>
+                        <td style="color:var(--gris-m); font-size:12px;">${user.email}</td>
+                        <td><span class="role-badge ${getRoleClass(user.role)}">${getRoleName(user.role)}</span></td>
+                        <td>
+                            ${user.is_active
+                                ? '<span class="status-active">✅ Activo</span>'
+                                : '<span class="status-inactive">❌ Inactivo</span>'}
+                        </td>
+                        <td style="display:flex; gap:6px;">
+                            <button class="btn btn-outline btn-sm" onclick="editUser(${user.id})">✏️ Editar</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${user.username}', ${isCurrentUser})" ${isCurrentUser ? 'disabled title="No puedes eliminarte a ti mismo"' : ''}>🗑️ Eliminar</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } else if (response.status === 403) {
+                document.getElementById('loading').textContent = 'No tienes permiso para ver esta información';
+            } else {
+                document.getElementById('loading').textContent = 'Error al cargar usuarios';
             }
+        } catch (error) {
+            document.getElementById('loading').textContent = 'Error de conexión';
         }
+    }
 
-        function getRoleName(role) {
-            const roles = { 'admin': 'Administrador', 'advanced': 'Avanzado', 'basic': 'Básico' };
-            return roles[role] || role;
-        }
+    function editUser(userId) {
+        window.location.href = `/edit-user?id=${userId}`;
+    }
 
-        function editUser(userId) {
-            window.location.href = `/edit-user?id=${userId}`;
-        }
-
-        async function deleteUser(userId, username, isCurrentUser) {
-            const successDiv = document.getElementById('alert-success');
-            const errorDiv = document.getElementById('alert-error');
-            const warningDiv = document.getElementById('alert-warning');
-
-            successDiv.style.display = 'none';
-            errorDiv.style.display = 'none';
-            warningDiv.style.display = 'none';
-
-            if (isCurrentUser) {
-                warningDiv.textContent = '⚠️ No puedes eliminar tu propio usuario';
-                warningDiv.style.display = 'block';
-                return;
+    async function deleteUser(userId, username, isCurrentUser) {
+        if (isCurrentUser) { toast('No puedes eliminar tu propio usuario', 'error'); return; }
+        if (!confirm(`¿Eliminar al usuario "${username}"?`)) return;
+        try {
+            const response = await fetch(`/api/users/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                toast(`Usuario "${username}" eliminado correctamente`, 'success');
+                loadUsers();
+            } else {
+                const data = await response.json();
+                toast(data.detail || 'Error al eliminar usuario', 'error');
             }
-
-            if (!confirm(`¿Estás seguro de eliminar al usuario "${username}"?`)) return;
-
-            try {
-                const response = await fetch(`/api/users/${userId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    successDiv.textContent = `Usuario "${username}" eliminado correctamente`;
-                    successDiv.style.display = 'block';
-                    loadUsers();
-                } else {
-                    const data = await response.json();
-                    errorDiv.textContent = data.detail || 'Error al eliminar usuario';
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.textContent = 'Error de conexión';
-                errorDiv.style.display = 'block';
-            }
+        } catch (error) {
+            toast('Error de conexión', 'error');
         }
+    }
 
-        async function init() {
-            const isAdmin = await checkRole();
-            if (isAdmin) await loadUsers();
-        }
+    async function init() {
+        const isAdmin = await checkRole();
+        if (isAdmin) await loadUsers();
+    }
 
-        init();
-    </script>
+    init();
+</script>
 </body>
 </html>
