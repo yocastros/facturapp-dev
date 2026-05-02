@@ -501,12 +501,6 @@ async def login_page():
     return FileResponse(os.path.join(BASE_DIR, "static", "login.html"))
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard_page():
-    """Página de dashboard"""
-    return FileResponse(os.path.join(BASE_DIR, "static", "dashboard.html"))
-
-
 @app.get("/users", response_class=HTMLResponse)
 async def users_list_page():
     """Página de listado de usuarios - La protección es en el frontend"""
