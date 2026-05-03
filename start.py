@@ -137,6 +137,7 @@ def esperar_usuarios(intentos=20):
 
 def arrancar_backend():
     global backend_process
+    liberar_puerto(5000)
     env = os.environ.copy()
     env['PYTHONIOENCODING'] = 'utf-8'
     poppler = obtener_poppler_path()
