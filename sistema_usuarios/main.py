@@ -5,7 +5,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from config_loader import get_secret_key
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -142,7 +142,6 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Login con username y password. Devuelve token JWT."""
-    from fastapi import Request as _Request
     user = authenticate_user(db, form_data.username, form_data.password)
 
     if not user:
