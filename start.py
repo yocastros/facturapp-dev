@@ -83,6 +83,7 @@ def obtener_poppler_path():
 # ── Arrancar backend ──────────────────────────────────────────────────────────
 backend_process = None
 usuarios_process = None
+usuarios_log_file = None
 
 def liberar_puerto(puerto):
     """Mata cualquier proceso que esté usando el puerto dado."""
@@ -103,7 +104,7 @@ def liberar_puerto(puerto):
 
 
 def arrancar_usuarios():
-    global usuarios_process
+    global usuarios_process, usuarios_log_file
     liberar_puerto(8000)
     python_exe = Path(sys.executable)
     ejecutable = str(python_exe.parent / 'python.exe') if (python_exe.parent / 'python.exe').exists() else str(python_exe)
@@ -112,15 +113,15 @@ def arrancar_usuarios():
         si = subprocess.STARTUPINFO()
         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     log_path = BASE_DIR / 'usuarios_error.log'
-    with open(log_path, 'w', encoding='utf-8') as log_file:
-        usuarios_process = subprocess.Popen(
-            [ejecutable, '-m', 'uvicorn', 'main:app',
-             '--host', '0.0.0.0', '--port', '8000'],
-            stdout=log_file,
-            stderr=log_file,
-            startupinfo=si,
-            cwd=str(USUARIOS_DIR)
-        )
+    usuarios_log_file = open(str(log_path), 'w', encoding='utf-8')
+    usuarios_process = subprocess.Popen(
+        [ejecutable, '-m', 'uvicorn', 'main:app',
+         '--host', '0.0.0.0', '--port', '8000'],
+        stdout=usuarios_log_file,
+        stderr=usuarios_log_file,
+        startupinfo=si,
+        cwd=str(USUARIOS_DIR)
+    )
 
 
 def esperar_usuarios(intentos=20):
@@ -182,7 +183,7 @@ def abrir_navegador():
 
 
 def detener_sistema(icon=None, item=None):
-    global backend_process, usuarios_process
+    global backend_process, usuarios_process, usuarios_log_file
     # Terminar procesos hijo con kill forzoso en Windows
     for proc in [backend_process, usuarios_process]:
         if proc:
@@ -197,6 +198,11 @@ def detener_sistema(icon=None, item=None):
                     proc.wait(timeout=5)
             except Exception:
                 pass
+    if usuarios_log_file:
+        try:
+            usuarios_log_file.close()
+        except Exception:
+            pass
     if icon:
         icon.stop()
     sys.exit(0)
