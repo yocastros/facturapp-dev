@@ -1030,6 +1030,35 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
 
 </main>
 
+<!-- ─── MODAL PURGAR LOGS ─── -->
+<div class="modal-overlay" id="modal-purgar-logs">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>🔐 Confirmar borrado de logs</h3>
+      <button class="btn-close" onclick="cerrarModalPurgar()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Eliminar registros anteriores a (días)</label>
+        <input type="number" class="form-control" id="purgar-dias" value="90" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña de administrador <span style="color:var(--rojo)">*</span></label>
+        <input type="password" class="form-control" id="purgar-password"
+               placeholder="Introduce tu contraseña"
+               onkeydown="if(event.key==='Enter') _confirmarPurgarLogs()">
+      </div>
+      <div id="purgar-error" style="display:none;color:var(--rojo);font-size:13px;margin-top:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModalPurgar()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="btn-confirmar-purgar" onclick="_confirmarPurgarLogs()">
+        🗑 Confirmar y borrar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── MODAL DETALLE ─── -->
 <div class="modal-overlay" id="modal-detalle">
   <div class="modal">
@@ -2080,12 +2109,57 @@ function _renderPagLogs(actual, total) {
 }
 
 function abrirModalPurgar() {
-  const dias = prompt('Eliminar logs anteriores a cuántos días? (mínimo 1)', '90');
-  if (dias === null) return;
-  const n = parseInt(dias);
-  if (isNaN(n) || n < 1) { toast('Número de días inválido', 'error'); return; }
-  if (!confirm(`Se eliminarán todos los logs anteriores a ${n} días. ¿Continuar?`)) return;
-  _purgarLogs(n);
+  document.getElementById('purgar-password').value = '';
+  document.getElementById('purgar-dias').value = '90';
+  document.getElementById('purgar-error').style.display = 'none';
+  document.getElementById('btn-confirmar-purgar').disabled = false;
+  document.getElementById('modal-purgar-logs').classList.add('open');
+  setTimeout(() => document.getElementById('purgar-password').focus(), 100);
+}
+function cerrarModalPurgar() {
+  document.getElementById('modal-purgar-logs').classList.remove('open');
+}
+
+async function _confirmarPurgarLogs() {
+  const pwd  = document.getElementById('purgar-password').value.trim();
+  const dias = parseInt(document.getElementById('purgar-dias').value);
+  const errEl = document.getElementById('purgar-error');
+  const btn   = document.getElementById('btn-confirmar-purgar');
+
+  errEl.style.display = 'none';
+  if (!pwd)              { errEl.textContent = 'Introduce la contraseña.';      errEl.style.display = ''; return; }
+  if (isNaN(dias) || dias < 1) { errEl.textContent = 'Número de días inválido.'; errEl.style.display = ''; return; }
+
+  // Obtener username del token JWT almacenado
+  const token = getToken();
+  let username = '';
+  try {
+    username = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub || '';
+  } catch(e) { errEl.textContent = 'No se pudo identificar el usuario.'; errEl.style.display = ''; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Verificando...';
+
+  try {
+    const body = new URLSearchParams({ username, password: pwd });
+    const r = await fetch(`${USUARIOS_API}/token`, { method: 'POST', body });
+    if (!r.ok) {
+      errEl.textContent = 'Contraseña incorrecta.';
+      errEl.style.display = '';
+      btn.disabled = false;
+      btn.innerHTML = '🗑 Confirmar y borrar';
+      return;
+    }
+  } catch(e) {
+    errEl.textContent = 'No se pudo verificar la contraseña. Comprueba la conexión.';
+    errEl.style.display = '';
+    btn.disabled = false;
+    btn.innerHTML = '🗑 Confirmar y borrar';
+    return;
+  }
+
+  cerrarModalPurgar();
+  _purgarLogs(dias);
 }
 
 async function _purgarLogs(dias) {
