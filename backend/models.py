@@ -131,3 +131,30 @@ class LineaDocumento(db.Model):
             'importe_linea': self.importe_linea,
             'orden': self.orden,
         }
+
+
+class LogActividad(db.Model):
+    __tablename__ = 'log_actividad'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    timestamp  = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    usuario    = db.Column(db.String(100), nullable=False, index=True)
+    accion     = db.Column(db.String(50), nullable=False, index=True)
+    entidad    = db.Column(db.String(50), nullable=True)
+    entidad_id = db.Column(db.Integer, nullable=True)
+    detalle    = db.Column(db.String(500), nullable=True)
+    ip         = db.Column(db.String(45), nullable=True)
+    resultado  = db.Column(db.String(10), default='ok')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'usuario': self.usuario,
+            'accion': self.accion,
+            'entidad': self.entidad,
+            'entidad_id': self.entidad_id,
+            'detalle': self.detalle,
+            'ip': self.ip,
+            'resultado': self.resultado,
+        }

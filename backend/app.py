@@ -25,7 +25,7 @@ except ImportError:
 from flask import Flask, request, jsonify, send_file, send_from_directory, g
 import requests as http_requests
 from flask_cors import CORS
-from models import db, Documento, Proveedor, LineaDocumento
+from models import db, Documento, Proveedor, LineaDocumento, LogActividad
 from ocr_processor import procesar_documento
 from report_generator import generar_reporte_excel, generar_reporte_contable, generar_reporte_analitico
 
@@ -44,6 +44,19 @@ CORS(app)
 # Debe coincidir con SECRET_KEY del sistema de usuarios
 _JWT_SECRET = get_secret_key()
 _JWT_ALGORITHM = "HS256"
+
+# ── Constantes de acciones para el log ───────────────────────────────────────
+LOG_LOGIN       = 'LOGIN'
+LOG_ESCANEAR    = 'ESCANEAR'
+LOG_EDITAR_DOC  = 'EDITAR_DOC'
+LOG_BORRAR_DOC  = 'BORRAR_DOC'
+LOG_NETEAR      = 'NETEAR'
+LOG_DESNETEAR   = 'DESNETEAR'
+LOG_CREAR_PROV  = 'CREAR_PROV'
+LOG_EDITAR_PROV = 'EDITAR_PROV'
+LOG_BORRAR_PROV = 'BORRAR_PROV'
+LOG_PROV_DOC    = 'PROV_DOC'
+LOG_REPORTE     = 'REPORTE'
 
 
 def require_auth(f):
@@ -65,6 +78,40 @@ def require_auth(f):
             return jsonify({'error': 'Token inválido.'}), 401
         return f(*args, **kwargs)
     return decorated
+
+def _get_usuario():
+    """Devuelve el nombre de usuario del token JWT, o 'desconocido' si no hay."""
+    payload = getattr(request, 'usuario', None)
+    if payload:
+        return payload.get('sub', 'desconocido')
+    return 'sin-auth'
+
+
+def _es_admin():
+    payload = getattr(request, 'usuario', None)
+    return bool(payload and payload.get('role') == 'admin')
+
+
+def registrar_log(usuario, accion, entidad=None, entidad_id=None, detalle=None, resultado='ok'):
+    try:
+        log = LogActividad(
+            usuario=usuario,
+            accion=accion,
+            entidad=entidad,
+            entidad_id=entidad_id,
+            detalle=detalle,
+            ip=request.remote_addr,
+            resultado=resultado,
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error registrando log: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
 
 # Configuración
 BASE_DIR = Path(__file__).parent.parent
@@ -133,16 +180,18 @@ def escanear_documento():
         resultado = procesar_documento(str(ruta_archivo))
     except Exception as e:
         logger.error(f"Error OCR: {e}")
-        # Eliminar archivo si hubo error técnico
         if ruta_archivo.exists():
             ruta_archivo.unlink()
+        registrar_log(_get_usuario(), LOG_ESCANEAR,
+                      detalle=f'OCR error: {str(e)[:200]}', resultado='error')
         return jsonify({'error': f'Error procesando documento: {str(e)}'}), 500
 
     if resultado.get('estado') == 'ERROR':
-        # Eliminar archivo si no es una factura/albarán válido
         if ruta_archivo.exists():
             ruta_archivo.unlink()
             logger.info(f"Archivo eliminado por validación fallida: {nombre_unico}")
+        registrar_log(_get_usuario(), LOG_ESCANEAR,
+                      detalle=resultado.get('error', 'Validación fallida')[:200], resultado='error')
         return jsonify({'error': resultado.get('error', 'Error desconocido')}), 422
 
     # Crear registro en BD
@@ -216,6 +265,9 @@ def escanear_documento():
     response['albaranes_neteados_automaticamente'] = len(albaranes_neteados)
     response['lineas_extraidas'] = len(lineas_data)
     response['proveedor_normalizado'] = doc.proveedor_normalizado
+
+    registrar_log(_get_usuario(), LOG_ESCANEAR, entidad='documento', entidad_id=doc.id,
+                  detalle=f'{doc.tipo} {doc.numero or ""} — {doc.proveedor or ""}')
     return jsonify(response), 201
 
 
@@ -363,6 +415,8 @@ def actualizar_documento(doc_id):
             setattr(doc, campo, datos[campo])
 
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_EDITAR_DOC, entidad='documento', entidad_id=doc_id,
+                  detalle=f'{doc.tipo} {doc.numero or ""}')
     return jsonify(doc.to_dict())
 
 
@@ -370,12 +424,14 @@ def actualizar_documento(doc_id):
 @require_auth
 def eliminar_documento(doc_id):
     doc = Documento.query.get_or_404(doc_id)
-    # Desasociar albaranes hijos
+    detalle_borrado = f'{doc.tipo} {doc.numero or ""} — {doc.proveedor or ""}'
     for alb in doc.albaranes_asociados.all():
         alb.factura_id = None
         alb.estado = 'PROCESADO'
     db.session.delete(doc)
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_BORRAR_DOC, entidad='documento', entidad_id=doc_id,
+                  detalle=detalle_borrado)
     return jsonify({'mensaje': 'Documento eliminado correctamente'})
 
 
@@ -410,6 +466,8 @@ def asociar_manualmente():
         factura.estado = 'FACTURA_ASOCIADA'
 
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_NETEAR, entidad='factura', entidad_id=factura_id,
+                  detalle=f'{len(asociados)} albarán(es) asociado(s)')
     return jsonify({
         'mensaje': f'{len(asociados)} albarán(es) asociado(s)',
         'factura': factura.to_dict(),
@@ -436,6 +494,8 @@ def desasociar_albaran(albaran_id):
             factura.estado = 'PROCESADO'
 
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_DESNETEAR, entidad='albaran', entidad_id=albaran_id,
+                  detalle=f'Desasociado de factura {factura_id_anterior}')
     return jsonify({'mensaje': 'Albarán desasociado correctamente', 'albaran': alb.to_dict()})
 
 
@@ -508,6 +568,8 @@ def crear_proveedor():
     )
     db.session.add(prov)
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_CREAR_PROV, entidad='proveedor', entidad_id=prov.id,
+                  detalle=prov.nombre)
     return jsonify(prov.to_dict()), 201
 
 
@@ -539,6 +601,8 @@ def actualizar_proveedor(prov_id):
             setattr(prov, campo, datos[campo])
 
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_EDITAR_PROV, entidad='proveedor', entidad_id=prov_id,
+                  detalle=prov.nombre)
     return jsonify(prov.to_dict())
 
 
@@ -551,8 +615,11 @@ def eliminar_proveedor(prov_id):
         return jsonify({
             'error': f'No se puede eliminar: tiene {n} documento(s) asociado(s). Desvincula los documentos primero.'
         }), 409
+    nombre_borrado = prov.nombre
     db.session.delete(prov)
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_BORRAR_PROV, entidad='proveedor', entidad_id=prov_id,
+                  detalle=nombre_borrado)
     return jsonify({'mensaje': 'Proveedor eliminado'})
 
 
@@ -593,6 +660,8 @@ def proveedor_desde_documento(doc_id):
             asociados += 1
 
     db.session.commit()
+    registrar_log(_get_usuario(), LOG_PROV_DOC, entidad='proveedor', entidad_id=prov.id,
+                  detalle=f'{prov.nombre} — {asociados} doc(s) asociados')
     return jsonify({'proveedor': prov.to_dict(), 'documentos_asociados': asociados})
 
 
@@ -657,6 +726,7 @@ def generar_reporte():
     if error:
         return jsonify({'error': error}), 500
 
+    registrar_log(_get_usuario(), LOG_REPORTE, detalle='Reporte general Excel')
     return send_file(
         ruta,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -699,6 +769,7 @@ def generar_reporte_contable_endpoint():
     if error:
         return jsonify({'error': error}), 500
 
+    registrar_log(_get_usuario(), LOG_REPORTE, detalle=f'Reporte contable — {nombre_proveedor}')
     return send_file(
         ruta,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -741,12 +812,92 @@ def generar_reporte_analitico_endpoint():
     if error:
         return jsonify({'error': error}), 500
 
+    registrar_log(_get_usuario(), LOG_REPORTE, detalle=f'Reporte analítico — {nombre_proveedor}')
     return send_file(
         ruta,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
         download_name=nombre
     )
+
+
+# ═══════════════════════════════════════════════════════════
+# LOGS DE ACTIVIDAD
+# ═══════════════════════════════════════════════════════════
+
+@app.route('/api/logs', methods=['GET'])
+@require_auth
+def listar_logs():
+    if not _es_admin():
+        return jsonify({'error': 'Solo administradores'}), 403
+
+    usuario    = request.args.get('usuario', '').strip()
+    accion     = request.args.get('accion', '').strip()
+    fecha_desde = request.args.get('fecha_desde', '').strip()
+    fecha_hasta = request.args.get('fecha_hasta', '').strip()
+    resultado  = request.args.get('resultado', '').strip()
+    pagina     = max(1, int(request.args.get('pagina', 1)))
+    por_pagina = min(200, max(1, int(request.args.get('por_pagina', 50))))
+
+    query = LogActividad.query
+    if usuario:
+        query = query.filter(LogActividad.usuario.ilike(f'%{usuario}%'))
+    if accion:
+        query = query.filter(LogActividad.accion == accion)
+    if fecha_desde:
+        query = query.filter(LogActividad.timestamp >= fecha_desde)
+    if fecha_hasta:
+        query = query.filter(LogActividad.timestamp <= fecha_hasta + ' 23:59:59')
+    if resultado:
+        query = query.filter(LogActividad.resultado == resultado)
+
+    total = query.count()
+    logs  = query.order_by(LogActividad.timestamp.desc()) \
+                 .offset((pagina - 1) * por_pagina) \
+                 .limit(por_pagina).all()
+
+    return jsonify({
+        'logs': [l.to_dict() for l in logs],
+        'total': total,
+        'pagina': pagina,
+        'por_pagina': por_pagina,
+        'paginas': max(1, (total + por_pagina - 1) // por_pagina),
+    })
+
+
+@app.route('/api/logs', methods=['DELETE'])
+@require_auth
+def purgar_logs():
+    if not _es_admin():
+        return jsonify({'error': 'Solo administradores'}), 403
+
+    dias = max(1, int(request.args.get('dias', 90)))
+    from datetime import timedelta
+    fecha_limite = datetime.utcnow() - timedelta(days=dias)
+    eliminados = LogActividad.query.filter(LogActividad.timestamp < fecha_limite).delete()
+    db.session.commit()
+    return jsonify({'eliminados': eliminados, 'dias': dias})
+
+
+@app.route('/api/logs/evento', methods=['POST'])
+def registrar_evento_externo():
+    """Acepta eventos de log desde servicios internos (solo localhost, sin JWT)."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'No autorizado'}), 403
+
+    datos = request.get_json() or {}
+    log = LogActividad(
+        usuario=datos.get('usuario', 'desconocido'),
+        accion=datos.get('accion', 'EVENTO'),
+        entidad=datos.get('entidad'),
+        entidad_id=datos.get('entidad_id'),
+        detalle=datos.get('detalle'),
+        ip=datos.get('ip') or request.remote_addr,
+        resultado=datos.get('resultado', 'ok'),
+    )
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'ok': True}), 201
 
 
 @app.route('/api/health', methods=['GET'])

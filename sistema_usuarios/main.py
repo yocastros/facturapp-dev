@@ -136,36 +136,65 @@ async def health_full(current_user: User = Depends(get_current_active_user)):
 # ==================== RUTAS DE AUTENTICACIÓN ====================
 
 @app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """
-    Login con username y password.
-    Devuelve token JWT.
-    """
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """Login con username y password. Devuelve token JWT."""
+    from fastapi import Request as _Request
     user = authenticate_user(db, form_data.username, form_data.password)
-    
+
     if not user:
+        _notificar_log_login(form_data.username, 'error',
+                             request.client.host if request.client else None,
+                             'Credenciales incorrectas')
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # Actualizar último login
+
     user.last_login = datetime.utcnow()
     db.commit()
-    
-    # Crear token
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role.name},
         expires_delta=access_token_expires
     )
-    
+
+    _notificar_log_login(user.username, 'ok',
+                        request.client.host if request.client else None,
+                        f'Rol: {user.role.name}')
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "role": user.role.name
     }
+
+
+def _notificar_log_login(usuario, resultado, ip, detalle):
+    """Fire-and-forget: envía evento LOGIN al sistema de facturas."""
+    try:
+        import urllib.request as _url
+        import json as _json
+        payload = _json.dumps({
+            'usuario': usuario,
+            'accion': 'LOGIN',
+            'ip': ip,
+            'detalle': detalle,
+            'resultado': resultado,
+        }).encode('utf-8')
+        req = _url.Request(
+            'http://127.0.0.1:5000/api/logs/evento',
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+        )
+        _url.urlopen(req, timeout=1)
+    except Exception:
+        pass
 
 
 @app.get("/me")

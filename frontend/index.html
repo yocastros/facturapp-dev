@@ -460,6 +460,9 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     <div class="nav-item" id="nav-admin-usuarios" style="display:none" onclick="window.location.href='http://localhost:8000/users'">
       <span class="icon">👥</span><span>Gestionar Usuarios</span>
     </div>
+    <div class="nav-item" id="nav-admin-logs" style="display:none" data-module="logs" onclick="showPage('logs')">
+      <span class="icon">📜</span><span>Logs de Actividad</span>
+    </div>
   </nav>
 
   <!-- Selector de tema -->
@@ -960,6 +963,67 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
   </div>
 </div>
 
+<!-- ─── LOGS DE ACTIVIDAD ─── -->
+<div class="page" id="page-logs">
+  <div class="topbar">
+    <div class="topbar-title">
+      <h2>Registro de Actividad</h2>
+      <p>Auditoría de acciones del sistema</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-danger btn-sm" onclick="abrirModalPurgar()">🗑 Limpiar logs...</button>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="filtros" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <input type="text" id="log-filtro-usuario" placeholder="Usuario..." style="width:140px" oninput="cargarLogs(1)">
+      <select id="log-filtro-accion" onchange="cargarLogs(1)" style="width:160px">
+        <option value="">Todas las acciones</option>
+        <option value="LOGIN">LOGIN</option>
+        <option value="ESCANEAR">ESCANEAR</option>
+        <option value="EDITAR_DOC">EDITAR_DOC</option>
+        <option value="BORRAR_DOC">BORRAR_DOC</option>
+        <option value="NETEAR">NETEAR</option>
+        <option value="DESNETEAR">DESNETEAR</option>
+        <option value="CREAR_PROV">CREAR_PROV</option>
+        <option value="EDITAR_PROV">EDITAR_PROV</option>
+        <option value="BORRAR_PROV">BORRAR_PROV</option>
+        <option value="PROV_DOC">PROV_DOC</option>
+        <option value="REPORTE">REPORTE</option>
+      </select>
+      <select id="log-filtro-resultado" onchange="cargarLogs(1)" style="width:130px">
+        <option value="">Todos los resultados</option>
+        <option value="ok">ok</option>
+        <option value="error">error</option>
+      </select>
+      <input type="date" id="log-filtro-desde" onchange="cargarLogs(1)" style="width:140px" title="Desde">
+      <input type="date" id="log-filtro-hasta" onchange="cargarLogs(1)" style="width:140px" title="Hasta">
+      <button class="btn btn-outline btn-sm" onclick="cargarLogs(1)">Filtrar</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px">Fecha/Hora</th>
+              <th>Usuario</th>
+              <th>Acción</th>
+              <th>Entidad</th>
+              <th>Detalle</th>
+              <th>IP</th>
+              <th style="text-align:center">Resultado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-logs-body">
+            <tr><td colspan="7" class="empty-state"><div class="spinner spinner-dark"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="paginacion" id="pag-logs" style="display:flex;justify-content:center;gap:6px;padding:12px"></div>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- ─── MODAL DETALLE ─── -->
@@ -1167,6 +1231,8 @@ async function initAuth() {
       if (u.role === 'admin') {
         const navAdmin = document.getElementById('nav-admin-usuarios');
         if (navAdmin) navAdmin.style.display = '';
+        const navLogs = document.getElementById('nav-admin-logs');
+        if (navLogs) navLogs.style.display = '';
         const btnAdmin = document.getElementById('btn-admin-usuarios');
         if (btnAdmin) btnAdmin.style.display = '';
       }
@@ -1190,6 +1256,7 @@ function showPage(id) {
   if (id === 'neteo')       cargarNeteo();
   if (id === 'proveedores') cargarProveedores();
   if (id === 'reportes')    cargarProveedoresReportes();
+  if (id === 'logs')        cargarLogs(1);
 }
 
 /* ──────────────────────────────────────
@@ -1837,6 +1904,106 @@ async function generarReporteAnalitico() {
     toast('✅ Análisis descargado', 'success');
   } catch(e) { toast('Error: ' + e.message, 'error'); }
   finally { btn.disabled=false; btn.innerHTML='📥 Descargar Análisis de Compras'; }
+}
+
+/* ──────────────────────────────────────
+   LOGS DE ACTIVIDAD
+   ────────────────────────────────────── */
+const LOG_COLORES = {
+  LOGIN:       '#3b82f6',
+  ESCANEAR:    '#8b5cf6',
+  EDITAR_DOC:  '#f59e0b',
+  BORRAR_DOC:  '#ef4444',
+  NETEAR:      '#10b981',
+  DESNETEAR:   '#6b7280',
+  CREAR_PROV:  '#0891b2',
+  EDITAR_PROV: '#f59e0b',
+  BORRAR_PROV: '#ef4444',
+  PROV_DOC:    '#0891b2',
+  REPORTE:     '#1e40af',
+};
+
+let _logsPagActual = 1;
+
+async function cargarLogs(pagina) {
+  pagina = pagina || _logsPagActual;
+  _logsPagActual = pagina;
+  const tbody = document.getElementById('tabla-logs-body');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="spinner spinner-dark"></div></td></tr>';
+
+  const usuario   = document.getElementById('log-filtro-usuario')?.value || '';
+  const accion    = document.getElementById('log-filtro-accion')?.value || '';
+  const resultado = document.getElementById('log-filtro-resultado')?.value || '';
+  const desde     = document.getElementById('log-filtro-desde')?.value || '';
+  const hasta     = document.getElementById('log-filtro-hasta')?.value || '';
+
+  const params = new URLSearchParams({ pagina, por_pagina: 50 });
+  if (usuario)   params.set('usuario', usuario);
+  if (accion)    params.set('accion', accion);
+  if (resultado) params.set('resultado', resultado);
+  if (desde)     params.set('fecha_desde', desde);
+  if (hasta)     params.set('fecha_hasta', hasta);
+
+  try {
+    const r = await fetch(`${API}/logs?${params}`, { headers: authHeaders() });
+    if (!r.ok) { const e = await r.json(); toast(e.error || 'Error cargando logs', 'error'); tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Error</td></tr>'; return; }
+    const d = await r.json();
+    _renderLogs(d.logs);
+    _renderPagLogs(d.pagina, d.paginas);
+  } catch(e) { toast('Error cargando logs', 'error'); }
+}
+
+function _renderLogs(logs) {
+  const tbody = document.getElementById('tabla-logs-body');
+  if (!logs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Sin registros</td></tr>'; return; }
+  tbody.innerHTML = logs.map(l => {
+    const color  = LOG_COLORES[l.accion] || '#64748b';
+    const badge  = `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${color}">${l.accion}</span>`;
+    const resOk  = l.resultado === 'ok'
+      ? '<span style="color:#10b981;font-weight:600">✓ ok</span>'
+      : '<span style="color:#ef4444;font-weight:600">✗ error</span>';
+    const ts = l.timestamp ? l.timestamp.replace('T', ' ').slice(0, 19) : '';
+    const entidad = l.entidad ? `${l.entidad}${l.entidad_id ? ' #' + l.entidad_id : ''}` : '—';
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${ts}</td>
+      <td>${l.usuario}</td>
+      <td>${badge}</td>
+      <td style="font-size:12px">${entidad}</td>
+      <td style="font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.detalle||'').replace(/"/g,'&quot;')}">${l.detalle || '—'}</td>
+      <td style="font-size:12px">${l.ip || '—'}</td>
+      <td style="text-align:center">${resOk}</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderPagLogs(actual, total) {
+  const cont = document.getElementById('pag-logs');
+  if (total <= 1) { cont.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const active = i === actual ? 'btn-primary' : 'btn-outline';
+    html += `<button class="btn ${active} btn-sm" onclick="cargarLogs(${i})">${i}</button>`;
+  }
+  cont.innerHTML = html;
+}
+
+function abrirModalPurgar() {
+  const dias = prompt('Eliminar logs anteriores a cuántos días? (mínimo 1)', '90');
+  if (dias === null) return;
+  const n = parseInt(dias);
+  if (isNaN(n) || n < 1) { toast('Número de días inválido', 'error'); return; }
+  if (!confirm(`Se eliminarán todos los logs anteriores a ${n} días. ¿Continuar?`)) return;
+  _purgarLogs(n);
+}
+
+async function _purgarLogs(dias) {
+  try {
+    const r = await fetch(`${API}/logs?dias=${dias}`, { method: 'DELETE', headers: authHeaders() });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Error', 'error'); return; }
+    toast(`✅ ${d.eliminados} registro(s) eliminados`, 'success');
+    cargarLogs(1);
+  } catch(e) { toast('Error al purgar logs', 'error'); }
 }
 
 /* ──────────────────────────────────────
