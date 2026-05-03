@@ -5,6 +5,8 @@ Arranque multiplataforma: Windows, macOS, Linux
 """
 import os
 import sys
+import atexit
+import signal as _signal
 import subprocess
 import webbrowser
 import time
@@ -82,23 +84,64 @@ def obtener_poppler_path():
 
 # ── Arrancar backend ──────────────────────────────────────────────────────────
 backend_process = None
+backend_log_file = None
 usuarios_process = None
 usuarios_log_file = None
 
 def liberar_puerto(puerto):
-    """Mata cualquier proceso que esté usando el puerto dado."""
+    """Mata procesos Python que estén usando el puerto dado (ignora PIDs sin proceso real)."""
     if SO != 'Windows':
         return
     try:
-        result = subprocess.run(
-            ['netstat', '-ano'],
-            capture_output=True, text=True
-        )
+        result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
+        pids = set()
         for line in result.stdout.splitlines():
             if f':{puerto} ' in line and 'LISTENING' in line:
                 pid = line.split()[-1]
                 if pid.isdigit():
+                    pids.add(pid)
+        for pid in pids:
+            try:
+                chk = subprocess.run(
+                    ['tasklist', '/FI', f'PID eq {pid}', '/FO', 'CSV', '/NH'],
+                    capture_output=True, text=True)
+                if 'python' in chk.stdout.lower():
                     subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _limpiar_procesos():
+    """Mata procesos hijo. Apto para atexit y manejadores de señal."""
+    for proc in [backend_process, usuarios_process]:
+        if proc:
+            try:
+                if SO == 'Windows':
+                    subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                                   capture_output=True)
+                else:
+                    proc.terminate()
+            except Exception:
+                pass
+    for lf in [backend_log_file, usuarios_log_file]:
+        if lf:
+            try:
+                lf.close()
+            except Exception:
+                pass
+
+
+atexit.register(_limpiar_procesos)
+
+def _handle_signal(sig, frame):
+    _limpiar_procesos()
+    sys.exit(0)
+
+for _s in ('SIGTERM', 'SIGBREAK'):
+    try:
+        _signal.signal(getattr(_signal, _s), _handle_signal)
     except Exception:
         pass
 
@@ -136,7 +179,7 @@ def esperar_usuarios(intentos=20):
 
 
 def arrancar_backend():
-    global backend_process
+    global backend_process, backend_log_file
     liberar_puerto(5000)
     env = os.environ.copy()
     env['PYTHONIOENCODING'] = 'utf-8'
@@ -157,15 +200,15 @@ def arrancar_backend():
         si = None
         ejecutable = sys.executable
 
-    with open(str(log_path), 'w', encoding='utf-8') as log_file:
-        backend_process = subprocess.Popen(
-            [ejecutable, str(FACTURAS_DIR / 'app.py')],
-            stdout=log_file,
-            stderr=log_file,
-            startupinfo=si,
-            cwd=str(FACTURAS_DIR),
-            env=env
-        )
+    backend_log_file = open(str(log_path), 'w', encoding='utf-8')
+    backend_process = subprocess.Popen(
+        [ejecutable, str(FACTURAS_DIR / 'app.py')],
+        stdout=backend_log_file,
+        stderr=backend_log_file,
+        startupinfo=si,
+        cwd=str(FACTURAS_DIR),
+        env=env
+    )
 
 
 def esperar_backend(intentos=25):
@@ -184,7 +227,7 @@ def abrir_navegador():
 
 
 def detener_sistema(icon=None, item=None):
-    global backend_process, usuarios_process, usuarios_log_file
+    global backend_process, backend_log_file, usuarios_process, usuarios_log_file
     # Terminar procesos hijo con kill forzoso en Windows
     for proc in [backend_process, usuarios_process]:
         if proc:
@@ -199,11 +242,12 @@ def detener_sistema(icon=None, item=None):
                     proc.wait(timeout=5)
             except Exception:
                 pass
-    if usuarios_log_file:
-        try:
-            usuarios_log_file.close()
-        except Exception:
-            pass
+    for lf in [backend_log_file, usuarios_log_file]:
+        if lf:
+            try:
+                lf.close()
+            except Exception:
+                pass
     if icon:
         icon.stop()
     sys.exit(0)
@@ -363,5 +407,20 @@ def arranque_con_ventana():
     root.mainloop()
 
 
+def verificar_instancia_unica():
+    """Devuelve True si somos la única instancia. Si ya hay otra, abre el navegador y sale."""
+    if SO != 'Windows':
+        return True
+    import ctypes
+    _MUTEX_NAME = "FacturasAlbaranesSistema_v1"
+    mutex = ctypes.windll.kernel32.CreateMutexW(None, False, _MUTEX_NAME)
+    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        # Ya hay una instancia corriendo — solo abrir el navegador
+        webbrowser.open('http://localhost:5000')
+        return False
+    return True
+
+
 if __name__ == '__main__':
-    arranque_con_bandeja()
+    if verificar_instancia_unica():
+        arranque_con_bandeja()

@@ -378,6 +378,105 @@ def extraer_numeros_albaranes_referenciados(texto):
     return numeros
 
 
+def extraer_lineas_detalle(texto: str) -> list:
+    """Extrae líneas de detalle del cuerpo del documento usando 3 estrategias."""
+    keywords_inicio = ['descripcion', 'concepto', 'detalle', 'articulo', 'producto',
+                       'referencia', 'denominacion']
+    keywords_fin = ['base imponible', 'subtotal', 'total neto', 'importe total',
+                    'total factura', 'total a pagar']
+
+    texto_lower = texto.lower()
+
+    pos_inicio = None
+    for kw in keywords_inicio:
+        idx = texto_lower.find(kw)
+        if idx != -1 and (pos_inicio is None or idx < pos_inicio):
+            pos_inicio = idx
+
+    pos_fin = None
+    for kw in keywords_fin:
+        idx = texto_lower.find(kw)
+        if idx != -1 and (pos_fin is None or idx < pos_fin):
+            pos_fin = idx
+
+    if pos_inicio is not None and pos_fin is not None and pos_inicio < pos_fin:
+        bloque = texto[pos_inicio:pos_fin]
+    elif pos_inicio is not None:
+        bloque = texto[pos_inicio:]
+    elif pos_fin is not None:
+        bloque = texto[:pos_fin]
+    else:
+        bloque = texto
+
+    PALABRAS_EXCLUIR = [
+        'total', 'subtotal', 'base imponible', 'i.v.a', 'iva', 'descuento',
+        'forma de pago', 'vencimiento', 'banco', 'iban', 'swift', 'cuenta',
+        'observacion', 'nota', 'gracias', 'plazo',
+    ]
+
+    def es_valida(desc, importe):
+        if len(desc.strip()) < 3:
+            return False
+        if importe <= 0:
+            return False
+        desc_lower = desc.lower()
+        return not any(kw in desc_lower for kw in PALABRAS_EXCLUIR)
+
+    def limpiar(desc):
+        return re.sub(r'\s{2,}', ' ', desc.strip())[:500]
+
+    lineas = []
+
+    # Estrategia A — 4 columnas numéricas: descripcion cantidad precio importe
+    patron_a = r'^\s*(.+?)\s{2,}(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d{1,2})?)\s+(\d+(?:[.,]\d{1,2})?)\s*$'
+    for m in re.finditer(patron_a, bloque, re.MULTILINE):
+        try:
+            desc = limpiar(m.group(1))
+            cantidad = _parsear_importe(m.group(2))
+            precio = _parsear_importe(m.group(3))
+            importe = _parsear_importe(m.group(4))
+            if es_valida(desc, importe):
+                lineas.append({'descripcion': desc, 'cantidad': cantidad, 'unidad': None,
+                               'precio_unitario': precio, 'importe_linea': importe, 'orden': len(lineas)})
+        except (ValueError, IndexError):
+            continue
+    if lineas:
+        return lineas
+
+    # Estrategia B — descripcion + importe al final de línea
+    patron_b = r'^\s*(.{5,80}?)\s{2,}(\d+(?:[.,]\d{1,2})?)\s*€?\s*$'
+    for m in re.finditer(patron_b, bloque, re.MULTILINE):
+        try:
+            desc = limpiar(m.group(1))
+            importe = _parsear_importe(m.group(2))
+            if es_valida(desc, importe):
+                lineas.append({'descripcion': desc, 'cantidad': 1.0, 'unidad': None,
+                               'precio_unitario': importe, 'importe_linea': importe, 'orden': len(lineas)})
+        except (ValueError, IndexError):
+            continue
+    if lineas:
+        return lineas
+
+    # Estrategia C — cantidad + unidad + descripcion + importe
+    patron_c = (r'^\s*(\d+(?:[.,]\d+)?)\s*'
+                r'(kg|gr|g|ud|uds|u|caja|cajas|l|litro|litros|pcs?|pack)\s+'
+                r'(.+?)\s+(\d+(?:[.,]\d{1,2})?)\s*€?\s*$')
+    for m in re.finditer(patron_c, bloque, re.MULTILINE | re.IGNORECASE):
+        try:
+            cantidad = _parsear_importe(m.group(1))
+            unidad = m.group(2).strip()
+            desc = limpiar(m.group(3))
+            importe = _parsear_importe(m.group(4))
+            precio = round(importe / cantidad, 4) if cantidad > 0 else 0.0
+            if es_valida(desc, importe):
+                lineas.append({'descripcion': desc, 'cantidad': cantidad, 'unidad': unidad,
+                               'precio_unitario': precio, 'importe_linea': importe, 'orden': len(lineas)})
+        except (ValueError, IndexError):
+            continue
+
+    return lineas
+
+
 def procesar_documento(ruta_archivo):
     """Función principal: procesa un documento y retorna datos extraídos."""
     ruta = Path(ruta_archivo)
@@ -488,6 +587,8 @@ def procesar_documento(ruta_archivo):
     if tipo == 'factura':
         albaranes_ref = extraer_numeros_albaranes_referenciados(texto)
 
+    lineas = extraer_lineas_detalle(texto)
+
     return {
         'tipo': tipo,
         'numero': numero,
@@ -500,5 +601,7 @@ def procesar_documento(ruta_archivo):
         'porcentaje_iva': porcentaje_iva,
         'texto_ocr': texto,
         'albaranes_referenciados': albaranes_ref,
+        'lineas': lineas,
+        'num_lineas': len(lineas),
         'estado': 'PROCESADO',
     }

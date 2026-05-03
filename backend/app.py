@@ -85,6 +85,18 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    # Migración: añadir columnas nuevas a tablas existentes
+    from sqlalchemy import inspect, text
+    _inspector = inspect(db.engine)
+    _cols_doc = {c['name'] for c in _inspector.get_columns('documentos')}
+    with db.engine.connect() as _conn:
+        if 'proveedor_id' not in _cols_doc:
+            _conn.execute(text(
+                'ALTER TABLE documentos ADD COLUMN proveedor_id INTEGER REFERENCES proveedores(id)'))
+        if 'proveedor_normalizado' not in _cols_doc:
+            _conn.execute(text(
+                'ALTER TABLE documentos ADD COLUMN proveedor_normalizado BOOLEAN DEFAULT 0'))
+        _conn.commit()
     logger.info("Base de datos inicializada")
 
 

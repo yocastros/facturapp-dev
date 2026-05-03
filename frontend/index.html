@@ -1224,7 +1224,12 @@ async function cargarEstadisticas() {
     else { alerta.style.display = 'none'; }
 
     checkBackend();
-  } catch(e) { toast('No se puede conectar con el servidor', 'error'); }
+  } catch(e) {
+    if (e && e.name !== 'AbortError') {
+      console.error('cargarEstadisticas error:', e);
+      toast('No se puede conectar con el servidor', 'error');
+    }
+  }
 }
 
 async function cargarRecientes() {
@@ -1835,10 +1840,32 @@ async function generarReporteAnalitico() {
 }
 
 /* ──────────────────────────────────────
+   TIMEOUT DE INACTIVIDAD (10 min)
+   ────────────────────────────────────── */
+(function () {
+  const WARN_MS   = 9 * 60 * 1000;
+  const LOGOUT_MS = 10 * 60 * 1000;
+  let tWarn, tLogout;
+
+  function resetInactividad() {
+    clearTimeout(tWarn);
+    clearTimeout(tLogout);
+    tWarn   = setTimeout(() => toast('Sesión inactiva. Se cerrará en 1 minuto.', 'info'), WARN_MS);
+    tLogout = setTimeout(() => cerrarSesion(), LOGOUT_MS);
+  }
+
+  ['mousemove', 'keydown', 'mousedown', 'touchstart', 'click', 'scroll']
+    .forEach(e => document.addEventListener(e, resetInactividad, { passive: true }));
+
+  resetInactividad();
+})();
+
+/* ──────────────────────────────────────
    ARRANQUE
    ────────────────────────────────────── */
 (async () => {
-  await initAuth();
+  const authed = await initAuth();
+  if (!authed) return;
   cargarEstadisticas();
   cargarRecientes();
 })();
