@@ -27,6 +27,9 @@ config.env
 uploads/
 reports/
 
+# Logs de ejecución
+*.log
+
 # IDEs
 .vscode/
 .idea/
