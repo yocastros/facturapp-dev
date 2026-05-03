@@ -5,6 +5,8 @@ db = SQLAlchemy()
 
 
 class Proveedor(db.Model):
+    """Empresa o autónomo emisor de facturas y albaranes."""
+
     __tablename__ = 'proveedores'
 
     id         = db.Column(db.Integer, primary_key=True)
@@ -20,6 +22,7 @@ class Proveedor(db.Model):
                                  lazy='dynamic', foreign_keys='Documento.proveedor_id')
 
     def to_dict(self):
+        """Serializa el proveedor a dict JSON-compatible incluyendo conteo de documentos."""
         return {
             'id': self.id,
             'nombre': self.nombre,
@@ -35,6 +38,8 @@ class Proveedor(db.Model):
 
 
 class Documento(db.Model):
+    """Factura o albarán procesado por OCR, con relación de neteo entre ellos."""
+
     __tablename__ = 'documentos'
 
     id             = db.Column(db.Integer, primary_key=True)
@@ -69,6 +74,7 @@ class Documento(db.Model):
     )
 
     def to_dict(self):
+        """Serializa el documento completo incluyendo líneas y albaranes asociados."""
         albaranes = []
         if self.tipo == 'factura':
             albaranes = [a.to_dict_simple() for a in self.albaranes_asociados.all()]
@@ -96,6 +102,7 @@ class Documento(db.Model):
         }
 
     def to_dict_simple(self):
+        """Serializa campos mínimos del documento para listados y relaciones."""
         return {
             'id': self.id,
             'tipo': self.tipo,
@@ -108,6 +115,8 @@ class Documento(db.Model):
 
 
 class LineaDocumento(db.Model):
+    """Línea de detalle de un documento (concepto, cantidad, precio, importe)."""
+
     __tablename__ = 'lineas_documento'
 
     id              = db.Column(db.Integer, primary_key=True)
@@ -121,6 +130,7 @@ class LineaDocumento(db.Model):
     orden           = db.Column(db.Integer, default=0)
 
     def to_dict(self):
+        """Serializa la línea de detalle a dict JSON-compatible."""
         return {
             'id': self.id,
             'documento_id': self.documento_id,
@@ -134,6 +144,8 @@ class LineaDocumento(db.Model):
 
 
 class LogActividad(db.Model):
+    """Registro de auditoría: quién hizo qué, cuándo y con qué resultado."""
+
     __tablename__ = 'log_actividad'
 
     id         = db.Column(db.Integer, primary_key=True)
@@ -147,6 +159,7 @@ class LogActividad(db.Model):
     resultado  = db.Column(db.String(10), default='ok')
 
     def to_dict(self):
+        """Serializa la entrada de log a dict JSON-compatible."""
         return {
             'id': self.id,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,

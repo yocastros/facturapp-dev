@@ -9,6 +9,8 @@ from database import Base
 # ==================== TABLA DE ROLES ====================
 
 class Role(Base):
+    """Rol de acceso (admin, supervisor, basico)."""
+
     __tablename__ = "roles"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -22,6 +24,8 @@ class Role(Base):
 # ==================== TABLA DE USUARIOS ====================
 
 class User(Base):
+    """Usuario del sistema con credenciales, rol y permisos por módulo."""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -41,6 +45,8 @@ class User(Base):
 # ==================== TABLA DE PERMISOS POR USUARIO ====================
 
 class UserPermission(Base):
+    """Permiso explícito de un usuario sobre un módulo concreto del sistema."""
+
     __tablename__ = "user_permissions"
 
     id = Column(Integer, primary_key=True, index=True)

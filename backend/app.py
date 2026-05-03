@@ -88,11 +88,22 @@ def _get_usuario():
 
 
 def _es_admin():
+    """Devuelve True si el usuario del token JWT tiene rol admin."""
     payload = getattr(request, 'usuario', None)
     return bool(payload and payload.get('role') == 'admin')
 
 
 def registrar_log(usuario, accion, entidad=None, entidad_id=None, detalle=None, resultado='ok'):
+    """Persiste una entrada en el log de auditoría; absorbe errores para no interrumpir el flujo.
+
+    Args:
+        usuario: Nombre de usuario que ejecuta la acción.
+        accion: Código de la acción (ej. ESCANEAR, NETEAR).
+        entidad: Tipo de objeto afectado (documento, proveedor…).
+        entidad_id: ID del objeto afectado.
+        detalle: Descripción libre adicional.
+        resultado: 'ok' o 'error'.
+    """
     try:
         log = LogActividad(
             usuario=usuario,
@@ -148,6 +159,7 @@ with app.app_context():
 
 
 def extension_permitida(filename):
+    """Devuelve True si la extensión del archivo está en el conjunto de formatos permitidos."""
     return Path(filename).suffix.lower() in EXTENSIONES_PERMITIDAS
 
 
@@ -398,6 +410,7 @@ def listar_documentos():
 @app.route('/api/documentos/<int:doc_id>', methods=['GET'])
 @require_auth
 def obtener_documento(doc_id):
+    """Devuelve el detalle completo de un documento por ID."""
     doc = Documento.query.get_or_404(doc_id)
     return jsonify(doc.to_dict())
 
@@ -405,6 +418,7 @@ def obtener_documento(doc_id):
 @app.route('/api/documentos/<int:doc_id>', methods=['PUT'])
 @require_auth
 def actualizar_documento(doc_id):
+    """Actualiza los campos editables de un documento existente."""
     doc = Documento.query.get_or_404(doc_id)
     datos = request.get_json()
 
@@ -423,6 +437,7 @@ def actualizar_documento(doc_id):
 @app.route('/api/documentos/<int:doc_id>', methods=['DELETE'])
 @require_auth
 def eliminar_documento(doc_id):
+    """Elimina un documento y desasocia los albaranes vinculados a él."""
     doc = Documento.query.get_or_404(doc_id)
     detalle_borrado = f'{doc.tipo} {doc.numero or ""} — {doc.proveedor or ""}'
     for alb in doc.albaranes_asociados.all():
@@ -519,6 +534,7 @@ def documentos_sin_asociar():
 @app.route('/api/proveedores', methods=['GET'])
 @require_auth
 def listar_proveedores():
+    """Lista proveedores con búsqueda opcional por nombre/CIF y paginación."""
     q        = request.args.get('q', '').strip()
     activo   = request.args.get('activo')
     pagina   = int(request.args.get('pagina', 1))
@@ -549,6 +565,7 @@ def listar_proveedores():
 @app.route('/api/proveedores', methods=['POST'])
 @require_auth
 def crear_proveedor():
+    """Crea un nuevo proveedor; rechaza CIF duplicado con 409."""
     datos = request.get_json() or {}
     nombre = datos.get('nombre', '').strip()
     if not nombre:
@@ -576,6 +593,7 @@ def crear_proveedor():
 @app.route('/api/proveedores/<int:prov_id>', methods=['GET'])
 @require_auth
 def obtener_proveedor(prov_id):
+    """Devuelve el detalle del proveedor más sus últimos 20 documentos asociados."""
     prov = Proveedor.query.get_or_404(prov_id)
     data = prov.to_dict()
     ultimos = prov.documentos.order_by(Documento.fecha_subida.desc()).limit(20).all()
@@ -586,6 +604,7 @@ def obtener_proveedor(prov_id):
 @app.route('/api/proveedores/<int:prov_id>', methods=['PUT'])
 @require_auth
 def actualizar_proveedor(prov_id):
+    """Actualiza datos del proveedor; valida unicidad de CIF si el campo cambia."""
     prov = Proveedor.query.get_or_404(prov_id)
     datos = request.get_json() or {}
 
@@ -609,6 +628,7 @@ def actualizar_proveedor(prov_id):
 @app.route('/api/proveedores/<int:prov_id>', methods=['DELETE'])
 @require_auth
 def eliminar_proveedor(prov_id):
+    """Elimina el proveedor si no tiene documentos asociados; devuelve 409 si los tiene."""
     prov = Proveedor.query.get_or_404(prov_id)
     n = prov.documentos.count()
     if n > 0:
@@ -626,6 +646,7 @@ def eliminar_proveedor(prov_id):
 @app.route('/api/proveedores/desde-documento/<int:doc_id>', methods=['POST'])
 @require_auth
 def proveedor_desde_documento(doc_id):
+    """Crea o reutiliza un proveedor a partir de los datos OCR de un documento y lo vincula a todos los documentos coincidentes."""
     import difflib
     doc = Documento.query.get_or_404(doc_id)
 
@@ -738,6 +759,7 @@ def generar_reporte():
 @app.route('/api/reportes/contable', methods=['POST'])
 @require_auth
 def generar_reporte_contable_endpoint():
+    """Genera y descarga informe contable de facturas filtrado por fecha y proveedor."""
     datos        = request.get_json() or {}
     fecha_desde  = datos.get('fecha_desde')
     fecha_hasta  = datos.get('fecha_hasta')
@@ -781,6 +803,7 @@ def generar_reporte_contable_endpoint():
 @app.route('/api/reportes/analitico', methods=['POST'])
 @require_auth
 def generar_reporte_analitico_endpoint():
+    """Genera y descarga informe analítico CPP de documentos con líneas de detalle."""
     datos        = request.get_json() or {}
     fecha_desde  = datos.get('fecha_desde')
     fecha_hasta  = datos.get('fecha_hasta')
@@ -828,6 +851,7 @@ def generar_reporte_analitico_endpoint():
 @app.route('/api/alertas/sin-netear', methods=['GET'])
 @require_auth
 def alertas_sin_netear():
+    """Devuelve facturas sin albarán clasificadas por urgencia (normal/aviso/critico según antigüedad)."""
     pendientes = Documento.query.filter(
         Documento.tipo == 'factura',
         Documento.estado != 'FACTURA_ASOCIADA',
@@ -884,6 +908,7 @@ def alertas_sin_netear():
 @app.route('/api/logs', methods=['GET'])
 @require_auth
 def listar_logs():
+    """Lista el log de auditoría con filtros opcionales; acceso restringido a admin."""
     if not _es_admin():
         return jsonify({'error': 'Solo administradores'}), 403
 
@@ -924,6 +949,7 @@ def listar_logs():
 @app.route('/api/logs', methods=['DELETE'])
 @require_auth
 def purgar_logs():
+    """Elimina entradas del log anteriores a N días (default 90); acceso restringido a admin."""
     if not _es_admin():
         return jsonify({'error': 'Solo administradores'}), 403
 
@@ -958,6 +984,7 @@ def registrar_evento_externo():
 
 @app.route('/api/health', methods=['GET'])
 def health():
+    """Comprueba que el servicio está activo y devuelve timestamp UTC."""
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
 
 
@@ -969,10 +996,12 @@ FRONTEND_DIR = str(BASE_DIR / 'frontend')
 
 @app.route('/')
 def serve_index():
+    """Sirve el SPA frontend (index.html)."""
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
 @app.route('/<path:filename>')
 def serve_static(filename):
+    """Sirve archivos estáticos del frontend (CSS, JS, imágenes)."""
     return send_from_directory(FRONTEND_DIR, filename)
 
 

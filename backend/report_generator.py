@@ -27,16 +27,19 @@ COLOR_AZUL_CLARO = "E8EEF4"
 
 
 def _borde_fino():
+    """Devuelve un objeto Border con trazo fino gris para celdas de datos."""
     lado = Side(style='thin', color="CCCCCC")
     return Border(left=lado, right=lado, top=lado, bottom=lado)
 
 
 def _borde_medio():
+    """Devuelve un objeto Border con trazo medio azul oscuro para celdas de totales."""
     lado = Side(style='medium', color=COLOR_AZUL_OSCURO)
     return Border(left=lado, right=lado, top=lado, bottom=lado)
 
 
 def _celda_cabecera(ws, fila, col, texto, ancho=None):
+    """Escribe una celda de cabecera con fondo azul oscuro y texto blanco en negrita."""
     celda = ws.cell(row=fila, column=col, value=texto)
     celda.font = Font(bold=True, color=COLOR_BLANCO, name='Calibri', size=11)
     celda.fill = PatternFill("solid", fgColor=COLOR_AZUL_OSCURO)
@@ -46,6 +49,7 @@ def _celda_cabecera(ws, fila, col, texto, ancho=None):
 
 
 def _celda_dato(ws, fila, col, valor, formato=None, color_fondo=None, negrita=False, alineacion='left'):
+    """Escribe una celda de dato con formato numérico, color de fondo y alineación opcionales."""
     celda = ws.cell(row=fila, column=col, value=valor)
     celda.font = Font(name='Calibri', size=10, bold=negrita,
                       color=COLOR_AZUL_OSCURO)
