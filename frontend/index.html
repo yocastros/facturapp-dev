@@ -530,6 +530,8 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
       <button class="help-banner-close" onclick="ocultarAyuda('help-dashboard')">✕</button>
     </div>
 
+    <div id="panel-alertas" style="display:none;margin-bottom:16px"></div>
+
     <div class="kpis">
       <div class="kpi">
         <div class="kpi-label">Total Documentos</div>
@@ -763,6 +765,8 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
       </div>
       <button class="help-banner-close" onclick="ocultarAyuda('help-neteo')">✕</button>
     </div>
+
+    <div id="resumen-neteo" style="display:none;padding:10px 16px;border-radius:6px;margin-bottom:12px;font-size:13px"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="card">
@@ -1251,9 +1255,10 @@ function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.getAttribute('onclick')?.includes(`'${id}'`)) n.classList.add('active');
   });
-  if (id === 'dashboard')   { cargarEstadisticas(); cargarRecientes(); }
+  if (id === 'dashboard') { cargarEstadisticas(); cargarRecientes(); cargarAlertas(); _iniciarIntervalAlertas(); }
+  else                    { _detenerIntervalAlertas(); }
   if (id === 'documentos')  cargarDocumentos();
-  if (id === 'neteo')       cargarNeteo();
+  if (id === 'neteo')       { cargarNeteo(); cargarAlertas(); }
   if (id === 'proveedores') cargarProveedores();
   if (id === 'reportes')    cargarProveedoresReportes();
   if (id === 'logs')        cargarLogs(1);
@@ -1282,10 +1287,6 @@ async function cargarEstadisticas() {
     if (d.total_documentos > 0) { badgeTotal.textContent = d.total_documentos; badgeTotal.style.display = ''; }
 
     const sinNetear = (d.facturas || 0) - (d.neteados || 0);
-    const badgeNeteo = document.getElementById('badge-neteo');
-    if (sinNetear > 0) { badgeNeteo.textContent = sinNetear; badgeNeteo.style.display = ''; badgeNeteo.className = 'nav-badge'; }
-    else { badgeNeteo.style.display = 'none'; }
-
     const alerta = document.getElementById('kpi-pendientes-alerta');
     if (sinNetear > 0) { alerta.textContent = `⚠ ${sinNetear} sin netear`; alerta.style.display = ''; }
     else { alerta.style.display = 'none'; }
@@ -1532,7 +1533,7 @@ async function asociarSeleccionados() {
     albaranesSeleccionados.clear();
     facturaSeleccionada = null;
     document.getElementById('card-asociar').style.display = 'none';
-    cargarNeteo(); cargarEstadisticas();
+    cargarNeteo(); cargarEstadisticas(); cargarAlertas();
   } catch(e) { toast('Error al asociar', 'error'); }
 }
 
@@ -1904,6 +1905,97 @@ async function generarReporteAnalitico() {
     toast('✅ Análisis descargado', 'success');
   } catch(e) { toast('Error: ' + e.message, 'error'); }
   finally { btn.disabled=false; btn.innerHTML='📥 Descargar Análisis de Compras'; }
+}
+
+/* ──────────────────────────────────────
+   ALERTAS SIN NETEAR
+   ────────────────────────────────────── */
+let _alertasInterval = null;
+
+function _iniciarIntervalAlertas() {
+  _detenerIntervalAlertas();
+  _alertasInterval = setInterval(cargarAlertas, 5 * 60 * 1000);
+}
+function _detenerIntervalAlertas() {
+  if (_alertasInterval) { clearInterval(_alertasInterval); _alertasInterval = null; }
+}
+
+async function cargarAlertas() {
+  try {
+    const r = await fetch(`${API}/alertas/sin-netear`, { headers: authHeaders() });
+    if (!r.ok) return;
+    const d = await r.json();
+    const { total, criticos, avisos, normales, importe_pendiente } = d;
+
+    // ── Badge en la pestaña Neteo ──────────────────────────────
+    const badge = document.getElementById('badge-neteo');
+    if (badge) {
+      if (total > 0) {
+        badge.textContent = total;
+        badge.style.display = '';
+        if (criticos > 0)      badge.style.background = '#C62828';
+        else if (total >= 10)  badge.style.background = '#E65100';
+        else                   badge.style.background = '#F9A825';
+        badge.style.color = '#fff';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── Panel de alertas en Dashboard ─────────────────────────
+    const panel = document.getElementById('panel-alertas');
+    if (panel) {
+      if (total === 0) {
+        panel.style.display = 'none';
+      } else {
+        let borde, fondo, icono, texto;
+        if (criticos > 0) {
+          borde = '#C62828'; fondo = '#FFEBEE'; icono = '⚠️';
+          texto = `<strong>${criticos} factura${criticos>1?'s':''} lleva${criticos>1?'n':''} más de 30 días sin albarán asociado</strong>`;
+        } else if (avisos > 0) {
+          borde = '#E65100'; fondo = '#FFF3E0'; icono = '🔔';
+          texto = `<strong>${avisos} factura${avisos>1?'s':''} lleva${avisos>1?'n':''} más de 15 días sin albarán asociado</strong>`;
+        } else {
+          borde = '#F9A825'; fondo = '#FFFDE7'; icono = 'ℹ️';
+          texto = `<strong>Tienes ${normales} factura${normales>1?'s':''} pendiente${normales>1?'s':''} de netear</strong>`;
+        }
+        panel.style.display = '';
+        panel.style.cssText = `display:flex;align-items:center;gap:14px;padding:14px 18px;
+          border-left:4px solid ${borde};background:${fondo};border-radius:6px;margin-bottom:16px`;
+        panel.innerHTML = `
+          <span style="font-size:22px">${icono}</span>
+          <div style="flex:1;font-size:13px">
+            ${texto}
+            <div style="margin-top:3px;color:#555">Importe pendiente: <strong>${fmt(importe_pendiente)}</strong></div>
+          </div>
+          <button class="btn btn-sm" style="background:${borde};color:#fff;border:none;white-space:nowrap"
+            onclick="showPage('neteo')">Ver pendientes →</button>`;
+      }
+    }
+
+    // ── Resumen en la pestaña Neteo ───────────────────────────
+    const resumen = document.getElementById('resumen-neteo');
+    if (resumen) {
+      if (total === 0) {
+        resumen.style.display = 'none';
+      } else {
+        let borde, fondo;
+        if (criticos > 0)     { borde = '#C62828'; fondo = '#FFEBEE'; }
+        else if (avisos > 0)  { borde = '#E65100'; fondo = '#FFF3E0'; }
+        else                  { borde = '#F9A825'; fondo = '#FFFDE7'; }
+        resumen.style.display = '';
+        resumen.style.cssText = `display:block;padding:10px 16px;border-left:4px solid ${borde};
+          background:${fondo};border-radius:6px;margin-bottom:12px;font-size:13px`;
+        const partes = [`<strong>${total} factura${total>1?'s':''} pendiente${total>1?'s':''}</strong>`];
+        partes.push(`${fmt(importe_pendiente)} en espera`);
+        if (criticos > 0) partes.push(`<span style="color:#C62828;font-weight:600">${criticos} crítica${criticos>1?'s':''} (&gt;30 días)</span>`);
+        if (avisos  > 0) partes.push(`<span style="color:#E65100;font-weight:600">${avisos} en aviso (&gt;15 días)</span>`);
+        resumen.innerHTML = partes.join(' · ');
+      }
+    }
+  } catch(e) {
+    // Fallar silenciosamente — no interrumpir el dashboard
+  }
 }
 
 /* ──────────────────────────────────────

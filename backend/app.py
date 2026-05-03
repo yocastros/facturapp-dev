@@ -822,6 +822,62 @@ def generar_reporte_analitico_endpoint():
 
 
 # ═══════════════════════════════════════════════════════════
+# ALERTAS
+# ═══════════════════════════════════════════════════════════
+
+@app.route('/api/alertas/sin-netear', methods=['GET'])
+@require_auth
+def alertas_sin_netear():
+    pendientes = Documento.query.filter(
+        Documento.tipo == 'factura',
+        Documento.estado != 'FACTURA_ASOCIADA',
+        Documento.estado != 'ERROR',
+    ).all()
+
+    ahora = datetime.utcnow()
+    criticos = avisos = normales = 0
+    importe_pendiente = 0.0
+    docs_info = []
+
+    for doc in pendientes:
+        ref_fecha = doc.fecha_subida or ahora
+        dias = (ahora - ref_fecha).days
+        if dias >= 30:
+            urgencia = 'critico'
+            criticos += 1
+        elif dias >= 15:
+            urgencia = 'aviso'
+            avisos += 1
+        else:
+            urgencia = 'normal'
+            normales += 1
+        importe_pendiente += doc.total or 0.0
+        docs_info.append({
+            'id': doc.id,
+            'numero': doc.numero,
+            'proveedor': doc.proveedor,
+            'fecha': doc.fecha,
+            'total': doc.total,
+            'dias_pendiente': dias,
+            'urgencia': urgencia,
+        })
+
+    docs_info.sort(key=lambda x: x['dias_pendiente'], reverse=True)
+
+    registrar_log(_get_usuario(), 'VER_ALERTAS',
+                  detalle=f'{len(pendientes)} pendientes')
+
+    return jsonify({
+        'total': len(pendientes),
+        'criticos': criticos,
+        'avisos': avisos,
+        'normales': normales,
+        'importe_pendiente': round(importe_pendiente, 2),
+        'documentos': docs_info[:10],
+    })
+
+
+# ═══════════════════════════════════════════════════════════
 # LOGS DE ACTIVIDAD
 # ═══════════════════════════════════════════════════════════
 
