@@ -103,20 +103,38 @@ body {
 .navbar-brand {
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:10px;
+}
+.navbar-logo-mark {
+  width:32px; height:32px;
+  border-radius:8px;
+  flex-shrink:0;
+  background:var(--dorado);
+  color:var(--azul);
+  font-family:'Playfair Display', serif;
+  font-size:10px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  letter-spacing:-.5px;
 }
 .navbar-brand h1 {
   font-family:'Playfair Display', serif;
-  font-size:17px;
+  font-size:15px;
   color:#fff;
   font-weight:700;
+  line-height:1.1;
+}
+.navbar-brand h1 em {
+  color:var(--dorado);
+  font-style:normal;
 }
 .navbar-brand span {
-  color:var(--dorado);
-  font-size:10px;
-  font-weight:500;
-  letter-spacing:1.5px;
-  text-transform:uppercase;
+  color:rgba(255,255,255,0.6);
+  font-size:9px;
+  font-weight:400;
+  letter-spacing:.4px;
 }
 .navbar-links {
   display:flex;
