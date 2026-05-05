@@ -33,7 +33,27 @@
   --bg-app:   #F2F0EB;
   --bg-card:  #FFFFFF;
   --bg-kpi:   #F7F6F2;
+  --text-main:#1B3A5C;
+  --input-bg: #FFFFFF;
 }
+
+/* ── TEMAS ── */
+body[data-theme="white"] { --bg-app:#FFFFFF; --bg-card:#FFFFFF; --bg-kpi:#F5F5F5; --input-bg:#F5F5F5; }
+body[data-theme="gris"]  { --bg-app:#F2F0EB; --bg-card:#FFFFFF; --bg-kpi:#F7F6F2; --input-bg:#FFFFFF; }
+body[data-theme="azul"]  { --bg-app:#EEF4FB; --bg-card:#FFFFFF; --bg-kpi:#E6EFF9; --input-bg:#FFFFFF; }
+body[data-theme="arena"] { --bg-app:#F5EDD6; --bg-card:#FFFDF5; --bg-kpi:#F0E4BF; --input-bg:#FFFDF5; }
+body[data-theme="black"] {
+  --bg-app:#1A1A1A; --bg-card:#262626; --bg-kpi:#2E2E2E;
+  --text-main:#F0F0F0; --input-bg:#2E2E2E;
+  --gris-l:#3A3A3A; --gris-f:#2A2A2A; --gris-m:#9A9A9A;
+  --azul-claro:#1E3A5F; --dorado-claro:#3A2E10;
+}
+body[data-theme="black"] { color:var(--text-main); }
+body[data-theme="black"] .card { border-color:rgba(255,255,255,0.08); }
+body[data-theme="black"] .form-control { background:var(--input-bg); color:var(--text-main); border-color:var(--gris-l); }
+body[data-theme="black"] .page-header h2,
+body[data-theme="black"] .card-title { color:#F0F0F0; }
+body[data-theme="black"] tbody td { color:#E0E0E0; }
 
 * { box-sizing:border-box; margin:0; padding:0; }
 
