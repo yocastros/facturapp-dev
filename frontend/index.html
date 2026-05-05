@@ -203,29 +203,20 @@ body[data-theme="black"] .help-banner-text { color:#90CAF9; }
   width:15px; height:15px; border-radius:50%;
   background:var(--azul-claro); color:var(--azul);
   font-size:9px; font-weight:700; cursor:help;
-  position:relative; vertical-align:middle; margin-left:5px;
+  vertical-align:middle; margin-left:5px;
   flex-shrink:0; user-select:none;
 }
-.tooltip-ayuda::after {
-  content:attr(data-tip);
-  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+body[data-theme="black"] .tooltip-ayuda { background:#2A3F55; color:#90CAF9; }
+#ayuda-tooltip {
+  position:fixed; z-index:9999; display:none;
   background:rgba(27,58,92,0.95); color:#fff;
+  font-family:'DM Sans',sans-serif;
   font-size:12px; font-weight:400; line-height:1.55;
   padding:9px 13px; border-radius:7px;
-  width:260px; white-space:normal;
-  pointer-events:none; opacity:0; transition:opacity .15s;
-  z-index:300; text-align:left;
+  max-width:270px; pointer-events:none;
   box-shadow:0 4px 16px rgba(0,0,0,0.22);
+  white-space:normal;
 }
-.tooltip-ayuda::before {
-  content:''; position:absolute; bottom:calc(100% + 3px);
-  left:50%; transform:translateX(-50%);
-  border:5px solid transparent; border-top-color:rgba(27,58,92,0.95);
-  pointer-events:none; opacity:0; transition:opacity .15s; z-index:300;
-}
-.tooltip-ayuda:hover::after,
-.tooltip-ayuda:hover::before { opacity:1; }
-body[data-theme="black"] .tooltip-ayuda { background:#2A3F55; color:#90CAF9; }
 
 /* ── KPIs ── */
 .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
@@ -2253,6 +2244,41 @@ async function _purgarLogs(dias) {
   cargarEstadisticas();
   cargarRecientes();
 })();
+
+/* ──────────────────────────────────────
+   TOOLTIPS DE AYUDA CONTEXTUAL
+   ────────────────────────────────────── */
+(function () {
+  const box = document.getElementById('ayuda-tooltip');
+  function posicionar(e) {
+    const margen = 14;
+    let x = e.clientX + margen;
+    let y = e.clientY - margen;
+    if (x + 280 > window.innerWidth)  x = e.clientX - 280 - margen;
+    if (y + 80  > window.innerHeight) y = e.clientY - 80 - margen;
+    if (y < 4) y = 4;
+    box.style.left = x + 'px';
+    box.style.top  = y + 'px';
+  }
+  document.addEventListener('mouseover', function (e) {
+    const el = e.target.closest('.tooltip-ayuda');
+    if (!el) return;
+    const tip = el.getAttribute('data-tip');
+    if (!tip) return;
+    box.textContent = tip;
+    box.style.display = 'block';
+    posicionar(e);
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (box.style.display === 'none') return;
+    if (!e.target.closest('.tooltip-ayuda')) { box.style.display = 'none'; return; }
+    posicionar(e);
+  });
+  document.addEventListener('mouseout', function (e) {
+    if (e.target.closest('.tooltip-ayuda')) box.style.display = 'none';
+  });
+})();
 </script>
+<div id="ayuda-tooltip"></div>
 </body>
 </html>
