@@ -489,7 +489,7 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     <div class="nav-item" data-module="proveedores" onclick="showPage('proveedores')">
       <span class="icon">🏢</span><span>Proveedores</span>
     </div>
-    <div class="nav-item" id="nav-admin-usuarios" style="display:none" onclick="window.location.href='http://localhost:8000/users?tema='+(localStorage.getItem('fa_tema')||'gris')">
+    <div class="nav-item" id="nav-admin-usuarios" style="display:none" onclick="window.location.href='http://localhost:8000/users?tema='+(localStorage.getItem(_claveТема())||'gris')">
       <span class="icon">👥</span><span>Gestionar Usuarios</span>
     </div>
     <div class="nav-item" id="nav-admin-logs" style="display:none" data-module="logs" onclick="showPage('logs')">
@@ -523,7 +523,7 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 4px;">
       <span id="sidebar-usuario" class="sidebar-usuario" style="font-size:12px;opacity:.7;"></span>
       <span id="btn-admin-usuarios" style="display:none;cursor:pointer;font-size:16px;opacity:.7;"
-            title="Gestionar usuarios" onclick="window.location.href='http://localhost:8000/users?tema='+(localStorage.getItem('fa_tema')||'gris')">⚙️</span>
+            title="Gestionar usuarios" onclick="window.location.href='http://localhost:8000/users?tema='+(localStorage.getItem(_claveТема())||'gris')">⚙️</span>
     </div>
     <div class="nav-item nav-item-logout" onclick="cerrarSesion()">
       <span class="icon">🚪</span><span>Cerrar sesión</span>
@@ -1198,12 +1198,14 @@ let facturaSeleccionada = null;
 let albaranesSeleccionados = new Set();
 
 /* ──────────────────────────────────────
-   TEMA DE COLOR
+   TEMA DE COLOR (guardado por usuario)
    ────────────────────────────────────── */
+let _usuarioTema = null;
+function _claveТема() { return _usuarioTema ? `fa_tema_${_usuarioTema}` : 'fa_tema'; }
 function setTema(t) {
   document.body.dataset.theme = t;
   document.querySelectorAll('.tema-swatch').forEach(s => s.classList.toggle('active', s.dataset.t === t));
-  try { localStorage.setItem('fa_tema', t); } catch(e) {}
+  try { localStorage.setItem(_claveТема(), t); } catch(e) {}
 }
 (function() {
   const saved = (() => { try { return localStorage.getItem('fa_tema'); } catch(e) { return null; } })();
@@ -1312,6 +1314,9 @@ async function initAuth() {
     const me = await fetch(`${USUARIOS_API}/me`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (me.ok) {
       const u = await me.json();
+      _usuarioTema = u.username;
+      const temaUsuario = localStorage.getItem(`fa_tema_${u.username}`) || localStorage.getItem('fa_tema') || 'gris';
+      setTema(temaUsuario);
       const el = document.getElementById('sidebar-usuario');
       if (el) el.textContent = u.full_name || u.username;
       if (u.role === 'admin') {
