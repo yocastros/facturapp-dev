@@ -2249,36 +2249,49 @@ async function _purgarLogs(dias) {
    TOOLTIPS DE AYUDA CONTEXTUAL
    ────────────────────────────────────── */
 (function () {
-  const box = document.getElementById('ayuda-tooltip');
+  const box = document.createElement('div');
+  box.id = 'ayuda-tooltip';
+  document.body.appendChild(box);
+
+  let activo = null;
+
   function posicionar(e) {
-    const margen = 14;
-    let x = e.clientX + margen;
-    let y = e.clientY - margen;
-    if (x + 280 > window.innerWidth)  x = e.clientX - 280 - margen;
-    if (y + 80  > window.innerHeight) y = e.clientY - 80 - margen;
+    const m = 14, w = 280, h = 90;
+    let x = e.clientX + m;
+    let y = e.clientY - m;
+    if (x + w > window.innerWidth)  x = e.clientX - w - m;
+    if (y + h > window.innerHeight) y = e.clientY - h - m;
     if (y < 4) y = 4;
     box.style.left = x + 'px';
     box.style.top  = y + 'px';
   }
+
   document.addEventListener('mouseover', function (e) {
     const el = e.target.closest('.tooltip-ayuda');
-    if (!el) return;
+    if (!el) {
+      if (activo) { box.style.display = 'none'; activo = null; }
+      return;
+    }
     const tip = el.getAttribute('data-tip');
     if (!tip) return;
+    activo = el;
     box.textContent = tip;
     box.style.display = 'block';
     posicionar(e);
   });
+
   document.addEventListener('mousemove', function (e) {
-    if (box.style.display === 'none') return;
-    if (!e.target.closest('.tooltip-ayuda')) { box.style.display = 'none'; return; }
-    posicionar(e);
+    if (activo) posicionar(e);
   });
+
   document.addEventListener('mouseout', function (e) {
-    if (e.target.closest('.tooltip-ayuda')) box.style.display = 'none';
+    const el = e.target.closest('.tooltip-ayuda');
+    if (el && (!e.relatedTarget || !e.relatedTarget.closest('.tooltip-ayuda'))) {
+      box.style.display = 'none';
+      activo = null;
+    }
   });
 })();
 </script>
-<div id="ayuda-tooltip"></div>
 </body>
 </html>
