@@ -19,11 +19,13 @@ El sistema te permite gestionar facturas y albaranes de forma digital y automati
 
 ## Acceso al sistema
 
-Abre el navegador y ve a `http://localhost:5000`.
+Para arrancar el sistema, haz doble clic en el acceso directo **Facturas y Albaranes** que se creó en el escritorio durante la instalación. Esto iniciará los servicios y abrirá automáticamente el navegador con la pantalla de login.
 
-Introduce tu **usuario** y **contraseña** en la pantalla de login. Si es la primera vez, solicita las credenciales al administrador.
+Introduce tu **usuario** y **contraseña**. Si es la primera vez, solicita las credenciales al administrador.
 
 > El sistema tiene un tiempo de sesión de **8 horas**. Al cabo de ese tiempo tendrás que volver a iniciar sesión.
+
+> Si el acceso directo no está disponible, contacta con el administrador para que reinstale el sistema o cree el acceso directo manualmente.
 
 ### Roles de usuario
 
@@ -144,6 +146,10 @@ Muestra todos los documentos del sistema con sus datos y estado.
 - **Estado:** Todos / Procesado / Pendiente / Error / Asociado
 - **Búsqueda:** Por número de documento, nombre de proveedor o CIF
 
+### Ver el documento original
+
+Desde el detalle de cualquier documento puedes consultar el fichero original que se subió al sistema. Haz clic en el botón **📄 Ver Archivo** para abrirlo en el navegador (PDF o imagen).
+
 ### Editar un documento
 
 Si el OCR extrajo algún dato incorrecto:
@@ -237,6 +243,58 @@ Si tienes un documento ya procesado y quieres crear el proveedor a partir de sus
 Desde el listado de proveedores puedes editar los datos de contacto (email, teléfono, dirección, notas) y marcar un proveedor como **inactivo** si ya no trabajas con él.
 
 > Un proveedor con documentos asociados **no se puede eliminar** directamente. Primero debes desvincular sus documentos.
+
+---
+
+## 👥 Gestión de Usuarios *(solo administradores)*
+
+Permite crear y administrar los usuarios que pueden acceder al sistema, asignarles roles y controlar a qué módulos tiene acceso cada uno.
+
+### Cómo acceder
+
+En el menú lateral principal verás el apartado **Gestión de Usuarios** (visible únicamente para administradores). Al hacer clic se abre la pantalla de administración de usuarios en una nueva pestaña del navegador.
+
+### Listado de usuarios
+
+Muestra todos los usuarios registrados con su nombre, email, rol y estado (activo/inactivo). Desde aquí puedes acceder a las opciones de edición y eliminación de cada usuario.
+
+### Crear un nuevo usuario
+
+1. Haz clic en **+ Nuevo Usuario**
+2. Rellena los datos: nombre de usuario, nombre completo, email, contraseña y rol
+3. Guarda el usuario
+
+Los roles disponibles son:
+
+| Rol | Descripción |
+|-----|-------------|
+| **Administrador** | Acceso total al sistema y a la gestión de usuarios |
+| **Supervisor** | Acceso a todos los módulos del sistema excepto gestión de usuarios y logs |
+| **Básico** | Solo accede a los módulos que el administrador haya habilitado |
+
+### Editar un usuario
+
+Haz clic en **Editar** junto al usuario. Puedes modificar su nombre, email, contraseña y rol.
+
+### Configurar permisos por módulo (usuarios básicos)
+
+Para los usuarios con rol **Básico**, puedes controlar exactamente a qué secciones tienen acceso:
+
+1. Abre la edición del usuario
+2. En el apartado **Permisos**, activa o desactiva cada módulo: Dashboard, Escanear, Documentos, Neteo, Reportes
+3. Guarda los cambios
+
+El usuario verá únicamente los módulos habilitados en su menú.
+
+### Eliminar un usuario
+
+Haz clic en **Eliminar** junto al usuario. Se pedirá confirmación antes de borrarlo definitivamente.
+
+> No es posible eliminar tu propio usuario mientras tienes la sesión activa.
+
+### Tu perfil
+
+Desde la pantalla de gestión de usuarios puedes acceder a tu **Perfil** para consultar o actualizar tus propios datos (nombre, email, contraseña).
 
 ---
 

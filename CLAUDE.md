@@ -40,6 +40,9 @@ cd sistema_usuarios && pip install -r requirements.txt
 bash instalar_linux.sh    # Ubuntu/Debian/Fedora
 bash instalar_mac.sh      # macOS Intel + Apple Silicon
 instalar_windows.bat      # Windows
+
+# Inicializar BD de usuarios (solo primera vez, crea admin por defecto)
+cd sistema_usuarios && python init_db.py
 ```
 
 ---
@@ -73,10 +76,19 @@ instalar_windows.bat      # Windows
 ├── frontend/
 │   └── index.html                   ← SPA completa (JS inline, sin dependencias externas)
 ├── sistema_usuarios/
-│   ├── main.py                      ← API FastAPI de auth y usuarios
+│   ├── main.py                      ← API FastAPI de auth, usuarios y permisos
 │   ├── models.py                    ← User, Role, UserPermission
 │   ├── schemas.py                   ← Pydantic schemas
-│   └── database.py
+│   ├── database.py
+│   ├── init_db.py                   ← Inicializa BD y crea usuario admin por defecto (primera vez)
+│   ├── requirements.txt
+│   └── static/                      ← UI de gestión de usuarios (servida por FastAPI)
+│       ├── login.html
+│       ├── users_list.html
+│       ├── create_user.html
+│       ├── edit_user.html
+│       ├── profile.html
+│       └── sistema_usuarios_shared.css
 ├── sistema_facturas/
 │   └── tests/test_integracion.py
 ├── uploads/                         ← PDFs/imágenes subidos (gitignoreado)
@@ -88,8 +100,9 @@ instalar_windows.bat      # Windows
 
 ## Modelos de base de datos
 
-**`backend` (SQLite: `facturas.db`)**
-- `Documento`: id, tipo (factura/albaran), numero, fecha, proveedor, cif, base_imponible, iva_importe, total, estado (PENDIENTE/PROCESADO/ERROR/FACTURA_ASOCIADA), factura_id (FK self), proveedor_id (FK), archivo, proveedor_normalizado
+**`backend` (SQLite: `sistema_facturas.db`)**
+- `Documento`: id, tipo (factura/albaran), numero, fecha, proveedor, cif, base_imponible, iva_importe, porcentaje_iva, total, estado (PENDIENTE/PROCESADO/ERROR/FACTURA_ASOCIADA), factura_id (FK self), proveedor_id (FK), archivo, archivo_original (UUID), texto_ocr, proveedor_normalizado
+- `LineaDocumento`: id, documento_id (FK), descripcion, cantidad, precio_unitario, total_linea
 - `Proveedor`: id, nombre, cif, email, telefono, direccion, notas, activo
 - `LogActividad`: id, usuario, accion, entidad, entidad_id, detalle, resultado, timestamp, ip
 
@@ -105,7 +118,7 @@ instalar_windows.bat      # Windows
 Todos los endpoints requieren `Authorization: Bearer <jwt>` salvo `/api/health`.
 
 **Documentos**
-- `POST /api/escanear` — Subir PDF/PNG/JPG/TIFF, ejecuta OCR, guarda en BD
+- `POST /api/escanear` — Subir PDF/PNG/JPG/JPEG/TIFF/BMP, ejecuta OCR, guarda en BD
 - `GET /api/documentos` — Listar con filtros (tipo, estado, proveedor, fechas, q)
 - `GET /api/documentos/:id` — Detalle
 - `PUT /api/documentos/:id` — Editar campos extraídos
@@ -130,9 +143,44 @@ Todos los endpoints requieren `Authorization: Bearer <jwt>` salvo `/api/health`.
 - `GET /api/alertas/sin-netear` — Facturas sin albarán por urgencia (normal/aviso/critico)
 - `GET /api/logs` — Auditoría con filtros (usuario, accion, resultado, fechas)
 - `DELETE /api/logs` — Purgar logs anteriores a fecha
+- `POST /api/logs/evento` — Registro interno de eventos desde `sistema_usuarios` (fire-and-forget)
 
 **Estadísticas**
 - `GET /api/estadisticas` — KPIs: totales, importes, estados
+
+**Ficheros**
+- `GET /api/documentos/:id/archivo` — Sirve el fichero original subido (PDF/imagen)
+
+---
+
+## API de usuarios (`:8000`)
+
+Gestión de usuarios y permisos. Los endpoints `/api/*` requieren `Authorization: Bearer <jwt>` y rol admin salvo indicación.
+
+**Auth**
+- `POST /token` — Login; devuelve JWT (`{username, password}` form-data)
+- `GET /me` — Usuario autenticado actual
+- `GET /me/permissions` — Permisos del usuario actual por módulo
+- `GET /health` — Health check público
+- `GET /health/full` — Health check autenticado
+
+**Usuarios** (solo admin)
+- `GET /api/users` — Listar todos los usuarios
+- `GET /api/users/:id` — Detalle de usuario
+- `POST /admin/users` — Crear usuario `{username, email, password, full_name, role_id}`
+- `PUT /users/:id` — Editar usuario (admin o el propio usuario)
+- `DELETE /api/users/:id` — Eliminar usuario
+
+**Permisos** (solo admin)
+- `GET /api/users/:id/permissions` — Permisos de un usuario por módulo
+- `PUT /api/users/:id/permissions` — Actualizar permisos `[{module, can_access}]`
+
+**Páginas HTML** (UI de gestión servida por FastAPI/static)
+- `GET /login` — Formulario de login
+- `GET /users` — Lista de usuarios
+- `GET /create-user` — Formulario de creación
+- `GET /edit-user` — Formulario de edición
+- `GET /profile` — Perfil del usuario actual
 
 ---
 

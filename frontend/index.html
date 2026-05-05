@@ -197,6 +197,36 @@ body[data-theme="black"] .help-banner-text { color:#90CAF9; }
 }
 .help-banner-close:hover { opacity:1; }
 
+/* ── TOOLTIP DE AYUDA CONTEXTUAL ── */
+.tooltip-ayuda {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:15px; height:15px; border-radius:50%;
+  background:var(--azul-claro); color:var(--azul);
+  font-size:9px; font-weight:700; cursor:help;
+  position:relative; vertical-align:middle; margin-left:5px;
+  flex-shrink:0; user-select:none;
+}
+.tooltip-ayuda::after {
+  content:attr(data-tip);
+  position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+  background:rgba(27,58,92,0.95); color:#fff;
+  font-size:12px; font-weight:400; line-height:1.55;
+  padding:9px 13px; border-radius:7px;
+  width:260px; white-space:normal;
+  pointer-events:none; opacity:0; transition:opacity .15s;
+  z-index:300; text-align:left;
+  box-shadow:0 4px 16px rgba(0,0,0,0.22);
+}
+.tooltip-ayuda::before {
+  content:''; position:absolute; bottom:calc(100% + 3px);
+  left:50%; transform:translateX(-50%);
+  border:5px solid transparent; border-top-color:rgba(27,58,92,0.95);
+  pointer-events:none; opacity:0; transition:opacity .15s; z-index:300;
+}
+.tooltip-ayuda:hover::after,
+.tooltip-ayuda:hover::before { opacity:1; }
+body[data-theme="black"] .tooltip-ayuda { background:#2A3F55; color:#90CAF9; }
+
 /* ── KPIs ── */
 .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
 .kpi {
@@ -534,22 +564,22 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
 
     <div class="kpis">
       <div class="kpi">
-        <div class="kpi-label">Total Documentos</div>
+        <div class="kpi-label">Total Documentos<span class="tooltip-ayuda" data-tip="Suma de todas las facturas y albaranes registrados en el sistema, independientemente de su estado.">?</span></div>
         <div class="kpi-value" id="kpi-total">—</div>
         <div class="kpi-sub">Procesados en el sistema</div>
       </div>
       <div class="kpi dorado">
-        <div class="kpi-label">Facturas</div>
+        <div class="kpi-label">Facturas<span class="tooltip-ayuda" data-tip="Total de facturas recibidas de proveedores. El importe mostrado es la suma de todos los totales (IVA incluido).">?</span></div>
         <div class="kpi-value" id="kpi-facturas">—</div>
         <div class="kpi-sub" id="kpi-importe-facturas">€ 0,00</div>
       </div>
       <div class="kpi verde">
-        <div class="kpi-label">Albaranes</div>
+        <div class="kpi-label">Albaranes<span class="tooltip-ayuda" data-tip="Total de albaranes de entrega registrados. El importe es la suma de los totales de todos los albaranes.">?</span></div>
         <div class="kpi-value" id="kpi-albaranes">—</div>
         <div class="kpi-sub" id="kpi-importe-albaranes">€ 0,00</div>
       </div>
       <div class="kpi rojo">
-        <div class="kpi-label">Neteados</div>
+        <div class="kpi-label">Neteados<span class="tooltip-ayuda" data-tip="Facturas que ya tienen al menos un albarán asociado. El objetivo ideal es que esta cifra coincida con el total de facturas.">?</span></div>
         <div class="kpi-value" id="kpi-neteados">—</div>
         <div class="kpi-sub">Facturas con albarán</div>
         <div class="kpi-alert" id="kpi-pendientes-alerta" style="display:none"></div>
@@ -565,19 +595,19 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
           <div class="estado-grid">
             <div class="estado-card">
               <div class="estado-card-num" id="est-procesados" style="color:var(--verde)">—</div>
-              <div class="estado-card-label">Procesados</div>
+              <div class="estado-card-label">Procesados<span class="tooltip-ayuda" data-tip="OCR completado y datos extraídos correctamente. Listos para netear.">?</span></div>
             </div>
             <div class="estado-card">
               <div class="estado-card-num" id="est-pendientes" style="color:var(--naranja)">—</div>
-              <div class="estado-card-label">Pendientes</div>
+              <div class="estado-card-label">Pendientes<span class="tooltip-ayuda" data-tip="Documentos procesados pero sin albarán asociado todavía. Ve a la sección Neteo para asociarlos.">?</span></div>
             </div>
             <div class="estado-card">
               <div class="estado-card-num" id="est-errores" style="color:var(--rojo)">—</div>
-              <div class="estado-card-label">Con Error</div>
+              <div class="estado-card-label">Con Error<span class="tooltip-ayuda" data-tip="El OCR no pudo extraer los datos correctamente (fichero ilegible, protegido o sin contenido válido). Abre el documento en la sección Documentos para corregirlo manualmente.">?</span></div>
             </div>
             <div class="estado-card">
               <div class="estado-card-num" id="est-neteados" style="color:var(--azul)">—</div>
-              <div class="estado-card-label">Neteados</div>
+              <div class="estado-card-label">Neteados<span class="tooltip-ayuda" data-tip="Facturas con al menos un albarán asociado. La asociación puede ser automática (el sistema lo detecta al escanear) o manual desde la sección Neteo.">?</span></div>
             </div>
           </div>
           <div style="font-size:12px;color:var(--text-sec);line-height:1.7">
@@ -651,7 +681,7 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
 
         <div class="card" style="margin-top:20px" id="cola-card">
           <div class="card-header">
-            <span class="card-title">Cola de Procesado</span>
+            <span class="card-title">Cola de Procesado<span class="tooltip-ayuda" data-tip="Archivos seleccionados y listos para enviar. Puedes añadir más antes de procesar. El botón 'Procesar Todo' los envía al servidor en orden.">?</span></span>
             <span id="cola-status" style="font-size:13px;color:var(--text-sec)">0 archivos</span>
           </div>
           <div class="card-body" id="cola-lista">
@@ -729,7 +759,9 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
           <thead>
             <tr>
               <th>Tipo</th><th>Número</th><th>Fecha</th><th>Proveedor</th><th>CIF</th>
-              <th style="text-align:right">Total</th><th>Estado</th><th>Asociados</th><th></th>
+              <th style="text-align:right">Total</th>
+              <th>Estado<span class="tooltip-ayuda" data-tip="PROCESADO: datos extraídos correctamente. PENDIENTE: sin albarán asociado. ERROR: requiere revisión manual. ASOCIADO: factura/albarán ya neteado.">?</span></th>
+              <th>Asociados<span class="tooltip-ayuda" data-tip="Número de albaranes vinculados a esta factura (o factura vinculada a este albarán). Haz clic en el documento para ver o gestionar las asociaciones.">?</span></th><th></th>
             </tr>
           </thead>
           <tbody id="tabla-docs-body">
@@ -875,7 +907,7 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px">
       <div class="card">
-        <div class="card-header"><span class="card-title">📊 Informe Contable</span></div>
+        <div class="card-header"><span class="card-title">📊 Informe Contable<span class="tooltip-ayuda" data-tip="Agrupa los documentos por proveedor mostrando subtotales de base imponible, IVA y total. Ideal para conciliación contable y verificación de pagos. Puedes filtrar por proveedor específico y rango de fechas.">?</span></span></div>
         <div class="card-body">
           <div class="form-group">
             <label class="form-label">Proveedor</label>
@@ -900,7 +932,7 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">🔍 Análisis de Compras (CPP)</span></div>
+        <div class="card-header"><span class="card-title">🔍 Análisis de Compras (CPP)<span class="tooltip-ayuda" data-tip="Coste Por Producto: analiza las líneas de detalle extraídas por OCR para calcular el coste medio ponderado de cada artículo o servicio. Solo aparecen documentos donde el OCR identificó líneas de detalle individuales.">?</span></span></div>
         <div class="card-body">
           <div class="form-group">
             <label class="form-label">Proveedor</label>
@@ -942,6 +974,16 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
     </div>
   </div>
   <div class="page-content">
+    <div class="help-banner" id="help-proveedores">
+      <span class="help-banner-icon">ℹ️</span>
+      <div class="help-banner-text">
+        <strong>Catálogo de proveedores.</strong>
+        Centraliza los datos de cada proveedor (nombre, CIF, email, teléfono) y los vincula con sus documentos.
+        Si el OCR extrae el mismo proveedor con nombres ligeramente distintos, puedes unificarlos creando el proveedor y usando <em>Crear proveedor desde documento</em>.
+        Marca un proveedor como <strong>inactivo</strong> si ya no trabajas con él: sus documentos se conservan pero deja de aparecer en los desplegables.
+      </div>
+      <button class="help-banner-close" onclick="ocultarAyuda('help-proveedores')">✕</button>
+    </div>
     <div class="filtros">
       <div class="search-bar">
         <input type="text" id="busqueda-prov" placeholder="Buscar por nombre o CIF..." oninput="filtrarProveedores()">
@@ -953,8 +995,8 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
           <thead>
             <tr>
               <th>Nombre</th><th>CIF</th><th>Email</th><th>Teléfono</th>
-              <th style="text-align:center">Documentos</th>
-              <th style="text-align:center">Activo</th>
+              <th style="text-align:center">Documentos<span class="tooltip-ayuda" data-tip="Número de facturas y albaranes vinculados a este proveedor en el sistema.">?</span></th>
+              <th style="text-align:center">Activo<span class="tooltip-ayuda" data-tip="Un proveedor inactivo no aparece en los desplegables de filtros ni en los reportes, pero sus documentos se conservan. Útil para proveedores con los que ya no trabajas.">?</span></th>
               <th style="text-align:center">Acciones</th>
             </tr>
           </thead>
@@ -975,10 +1017,19 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
       <p>Auditoría de acciones del sistema</p>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-danger btn-sm" onclick="abrirModalPurgar()">🗑 Limpiar logs...</button>
+      <button class="btn btn-danger btn-sm" onclick="abrirModalPurgar()" title="Elimina permanentemente los registros de auditoría anteriores a la fecha indicada. Esta acción no se puede deshacer.">🗑 Limpiar logs...</button>
     </div>
   </div>
   <div class="page-content">
+    <div class="help-banner" id="help-logs">
+      <span class="help-banner-icon">ℹ️</span>
+      <div class="help-banner-text">
+        <strong>Registro de auditoría del sistema.</strong>
+        Aquí queda constancia de todas las acciones realizadas: quién inició sesión, qué documentos se escanearon, editaron o eliminaron, qué neteos se hicieron y qué informes se generaron.
+        Usa los filtros para localizar acciones concretas. El botón <strong>Limpiar logs</strong> elimina registros antiguos de forma permanente para liberar espacio.
+      </div>
+      <button class="help-banner-close" onclick="ocultarAyuda('help-logs')">✕</button>
+    </div>
     <div class="filtros" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">
       <input type="text" id="log-filtro-usuario" placeholder="Usuario..." style="width:140px" oninput="cargarLogs(1)">
       <select id="log-filtro-accion" onchange="cargarLogs(1)" style="width:160px">
@@ -1011,11 +1062,11 @@ tbody tr:hover td { background:var(--bg-kpi); cursor:pointer; }
             <tr>
               <th style="width:160px">Fecha/Hora</th>
               <th>Usuario</th>
-              <th>Acción</th>
-              <th>Entidad</th>
+              <th>Acción<span class="tooltip-ayuda" data-tip="Tipo de operación realizada: LOGIN, ESCANEAR, EDITAR_DOC, BORRAR_DOC, NETEAR, DESNETEAR, CREAR_PROV, EDITAR_PROV, BORRAR_PROV, REPORTE.">?</span></th>
+              <th>Entidad<span class="tooltip-ayuda" data-tip="Tipo de objeto sobre el que se realizó la acción (documento, proveedor, etc.) y su identificador interno.">?</span></th>
               <th>Detalle</th>
-              <th>IP</th>
-              <th style="text-align:center">Resultado</th>
+              <th>IP<span class="tooltip-ayuda" data-tip="Dirección IP desde la que se realizó la acción. Útil para detectar accesos no autorizados.">?</span></th>
+              <th style="text-align:center">Resultado<span class="tooltip-ayuda" data-tip="'ok' indica que la operación se completó correctamente. 'error' indica que falló — el campo Detalle contiene la causa.">?</span></th>
             </tr>
           </thead>
           <tbody id="tabla-logs-body">
