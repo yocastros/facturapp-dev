@@ -89,9 +89,16 @@ body {
 .login-wrapper { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--gris-f); }
 .login-box { background:var(--bg-card); border-radius:14px; box-shadow:var(--sombra-med); padding:36px 40px; width:380px; max-width:94vw; border:1px solid rgba(27,58,92,0.07); }
 .login-logo { text-align:center; margin-bottom:28px; }
-.login-logo h1 { font-family:'Playfair Display', serif; font-size:22px; color:var(--azul); }
-.login-logo span { color:var(--dorado); font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; display:block; margin-top:3px; }
-.login-logo .lock-icon { font-size:36px; display:block; margin-bottom:10px; }
+.login-logo-mark {
+  width:52px; height:52px; border-radius:14px;
+  background:var(--dorado); color:var(--azul);
+  font-family:'Playfair Display',serif; font-size:17px; font-weight:900;
+  display:flex; align-items:center; justify-content:center;
+  letter-spacing:-.5px; margin:0 auto 14px;
+}
+.login-logo h1 { font-family:'Playfair Display', serif; font-size:22px; color:var(--azul); line-height:1.25; }
+.login-logo h1 em { color:var(--dorado); font-style:normal; }
+.login-logo span { color:var(--gris-m); font-size:10px; font-weight:600; letter-spacing:2px; text-transform:uppercase; display:block; margin-top:5px; }
 
 .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:8px; font-family:'DM Sans', sans-serif; font-size:13px; font-weight:500; cursor:pointer; border:none; transition:all .18s; text-decoration:none; }
 .btn-primary { background:var(--azul); color:#fff; }
@@ -166,9 +173,9 @@ body { background:var(--gris-f); display:flex; align-items:center; justify-conte
 <div class="login-wrapper">
   <div class="login-box">
     <div class="login-logo">
-      <span class="lock-icon">🔐</span>
-      <h1>Gestión Facturas</h1>
-      <span>& Albaranes</span>
+      <div class="login-logo-mark">F&amp;A</div>
+      <h1>Facturas <em>&amp;</em> Albaranes</h1>
+      <span>Sistema de Gestión</span>
     </div>
 
     <div id="alert-error" class="alert alert-error"></div>
